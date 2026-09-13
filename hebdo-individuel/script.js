@@ -949,6 +949,7 @@ async function render() {
 
   alignMealBanner();
   updatePrintDate();
+  buildPrintSheet();
 }
 
 
@@ -1451,6 +1452,1216 @@ function alignMealBanner() {
 }
 
 
+
+/* =========================================================
+   IMPRESSION ADAPTATIVE A4 / A3
+   ========================================================= */
+
+/*
+ * L'impression utilise une page dédiée indépendante de la grille écran.
+ * Pour chaque usager, le script cherche la plus grande taille de tuiles
+ * qui tient réellement sur une seule page. Le bandeau d'identité et les
+ * éléments structurants restent volontairement de taille fixe pour tous.
+ *
+ * Le coefficient -2 correspond au mode ultra, réservé aux cas exceptionnellement chargés.
+ * Le coefficient -1 correspond au mode d'urgence très dense.
+ * Le coefficient  0 correspond au mode compact (ancien niveau density-4).
+ * Le coefficient  1 correspond au mode confort, nettement plus lisible.
+ */
+const PRINT_RATIO_MIN = -2;
+const PRINT_RATIO_MAX = 1;
+const PRINT_SEARCH_STEPS = 12;
+const PRINT_SAFETY_RATIO = 0.985;
+
+const PRINT_FORMATS = {
+  a4: {
+    pageSize: 'A4',
+    margin: '8mm 6mm',
+    widthMm: 285,
+    heightMm: 194
+  },
+  a3: {
+    pageSize: 'A3',
+    margin: '9mm',
+    widthMm: 402,
+    heightMm: 279
+  }
+};
+
+/*
+ * Bornes de dimensions.
+ * compact = dimensions proches de la version qui tient déjà pour les plannings chargés.
+ * comfort = dimensions maximales visées pour les plannings légers.
+ * emergency = uniquement si le mode compact ne suffit pas.
+ * ultra = dernier filet de sécurité : seules les tuiles se réduisent davantage ;
+ *         l'en-tête reste strictement identique à tous les autres plannings.
+ */
+const PRINT_METRICS = {
+  ultra: {
+    phHeight: 13.2,
+    phGap: 3.2,
+    phPadBottom: 0.8,
+    portraitSize: 11.2,
+    portraitBorder: 0.35,
+    portraitRadius: 1.0,
+    portraitFont: 11.5,
+    identityGap: 2.0,
+    kickerFont: 5.0,
+    kickerMargin: 0.35,
+    nameFont: 11.5,
+    sublineFont: 4.8,
+    sublineMargin: 0.35,
+    logoWidth: 20.5,
+    logoHeight: 9.0,
+    weekHeight: 4.8,
+    weekFont: 5.5,
+    weekRadius: 0.9,
+    gridDayHeight: 5.3,
+    gridMealHeight: 3.9,
+    gridColumnGap: 0.65,
+    gridTopPad: 0.65,
+    dayHeadPadX: 0.7,
+    dayTitleFont: 6.2,
+    dayCountFont: 3.9,
+    periodPad: 0.38,
+    periodTitleMargin: 0.25,
+    periodTitleFont: 4.10,
+    cardGap: 0.18,
+    cardPadY: 0.32,
+    cardPadLeft: 0.42,
+    cardBorder: 0.25,
+    cardRadius: 0.65,
+    activityTitleFont: 4.85,
+    activityTitleMargin: 0.18,
+    activityTimeFont: 3.85,
+    activityTimePadY: 0.12,
+    activityTimePadX: 0.35,
+    activityMetaFont: 3.55,
+    activityMetaMargin: 0.18,
+    activityMetaLine: 1.00,
+    activityDescFont: 3.25,
+    activityDescMargin: 0.15,
+    activityDescLine: 1.00,
+    activityLogoSize: 5.0,
+    activityLogoOffset: 0.35,
+    emptyMinHeight: 4.5,
+    emptyPad: 0.35,
+    emptyFont: 3.8,
+    mealFont: 5.0,
+    mealMargin: 0.28,
+    footHeight: 3.3,
+    footFont: 3.95,
+    footPadTop: 0.45
+  },
+
+  emergency: {
+    phHeight: 13.2,
+    phGap: 3.2,
+    phPadBottom: 0.8,
+    portraitSize: 11.2,
+    portraitBorder: 0.35,
+    portraitRadius: 1.0,
+    portraitFont: 11.5,
+    identityGap: 2.0,
+    kickerFont: 5.0,
+    kickerMargin: 0.35,
+    nameFont: 11.5,
+    sublineFont: 4.8,
+    sublineMargin: 0.35,
+    logoWidth: 20.5,
+    logoHeight: 9.0,
+    weekHeight: 4.8,
+    weekFont: 5.5,
+    weekRadius: 0.9,
+    gridDayHeight: 5.3,
+    gridMealHeight: 3.9,
+    gridColumnGap: 0.65,
+    gridTopPad: 0.65,
+    dayHeadPadX: 0.7,
+    dayTitleFont: 6.2,
+    dayCountFont: 3.9,
+    periodPad: 0.48,
+    periodTitleMargin: 0.35,
+    periodTitleFont: 4.55,
+    cardGap: 0.28,
+    cardPadY: 0.42,
+    cardPadLeft: 0.50,
+    cardBorder: 0.30,
+    cardRadius: 0.75,
+    activityTitleFont: 5.25,
+    activityTitleMargin: 0.24,
+    activityTimeFont: 4.15,
+    activityTimePadY: 0.15,
+    activityTimePadX: 0.42,
+    activityMetaFont: 3.9,
+    activityMetaMargin: 0.22,
+    activityMetaLine: 1.03,
+    activityDescFont: 3.55,
+    activityDescMargin: 0.20,
+    activityDescLine: 1.02,
+    activityLogoSize: 5.8,
+    activityLogoOffset: 0.42,
+    emptyMinHeight: 5.2,
+    emptyPad: 0.45,
+    emptyFont: 4.1,
+    mealFont: 5.0,
+    mealMargin: 0.28,
+    footHeight: 3.3,
+    footFont: 3.95,
+    footPadTop: 0.45
+  },
+
+  compact: {
+    phHeight: 14.0,
+    phGap: 3.6,
+    phPadBottom: 0.9,
+    portraitSize: 12.0,
+    portraitBorder: 0.38,
+    portraitRadius: 1.0,
+    portraitFont: 12.0,
+    identityGap: 2.2,
+    kickerFont: 5.2,
+    kickerMargin: 0.45,
+    nameFont: 12.4,
+    sublineFont: 5.0,
+    sublineMargin: 0.45,
+    logoWidth: 22.0,
+    logoHeight: 10.0,
+    weekHeight: 5.2,
+    weekFont: 5.8,
+    weekRadius: 1.0,
+    gridDayHeight: 5.8,
+    gridMealHeight: 4.3,
+    gridColumnGap: 0.85,
+    gridTopPad: 0.8,
+    dayHeadPadX: 0.85,
+    dayTitleFont: 6.8,
+    dayCountFont: 4.2,
+    periodPad: 0.58,
+    periodTitleMargin: 0.45,
+    periodTitleFont: 4.9,
+    cardGap: 0.38,
+    cardPadY: 0.55,
+    cardPadLeft: 0.65,
+    cardBorder: 0.35,
+    cardRadius: 0.85,
+    activityTitleFont: 5.7,
+    activityTitleMargin: 0.30,
+    activityTimeFont: 4.6,
+    activityTimePadY: 0.20,
+    activityTimePadX: 0.50,
+    activityMetaFont: 4.25,
+    activityMetaMargin: 0.28,
+    activityMetaLine: 1.04,
+    activityDescFont: 3.9,
+    activityDescMargin: 0.25,
+    activityDescLine: 1.03,
+    activityLogoSize: 6.6,
+    activityLogoOffset: 0.50,
+    emptyMinHeight: 5.8,
+    emptyPad: 0.55,
+    emptyFont: 4.4,
+    mealFont: 5.4,
+    mealMargin: 0.35,
+    footHeight: 3.6,
+    footFont: 4.2,
+    footPadTop: 0.55
+  },
+
+  comfort: {
+    phHeight: 18.2,
+    phGap: 5.4,
+    phPadBottom: 1.6,
+    portraitSize: 16.2,
+    portraitBorder: 0.48,
+    portraitRadius: 1.5,
+    portraitFont: 14.0,
+    identityGap: 3.3,
+    kickerFont: 6.9,
+    kickerMargin: 0.9,
+    nameFont: 17.0,
+    sublineFont: 6.3,
+    sublineMargin: 0.9,
+    logoWidth: 28.0,
+    logoHeight: 13.0,
+    weekHeight: 6.6,
+    weekFont: 7.2,
+    weekRadius: 1.3,
+    gridDayHeight: 8.0,
+    gridMealHeight: 5.9,
+    gridColumnGap: 1.65,
+    gridTopPad: 1.35,
+    dayHeadPadX: 1.55,
+    dayTitleFont: 9.1,
+    dayCountFont: 5.5,
+    periodPad: 1.55,
+    periodTitleMargin: 1.15,
+    periodTitleFont: 7.2,
+    cardGap: 1.20,
+    cardPadY: 1.45,
+    cardPadLeft: 1.50,
+    cardBorder: 0.52,
+    cardRadius: 1.35,
+    activityTitleFont: 10.4,
+    activityTitleMargin: 0.78,
+    activityTimeFont: 7.8,
+    activityTimePadY: 0.42,
+    activityTimePadX: 1.0,
+    activityMetaFont: 7.0,
+    activityMetaMargin: 0.82,
+    activityMetaLine: 1.15,
+    activityDescFont: 6.2,
+    activityDescMargin: 0.70,
+    activityDescLine: 1.10,
+    activityLogoSize: 14.8,
+    activityLogoOffset: 1.0,
+    emptyMinHeight: 12.0,
+    emptyPad: 1.4,
+    emptyFont: 6.9,
+    mealFont: 7.4,
+    mealMargin: 0.65,
+    footHeight: 4.6,
+    footFont: 5.0,
+    footPadTop: 0.9
+  }
+};
+
+/*
+ * Dimensions structurelles fixes pour toutes les impressions.
+ * Elles ne sont jamais interpolées avec la densité du planning.
+ */
+const PRINT_FIXED_MM = [
+  ['--ph-height', 19.0],
+  ['--ph-gap', 5.0],
+  ['--ph-pad-bottom', 1.0],
+  ['--portrait-size', 17.0],
+  ['--portrait-border', 0.50],
+  ['--portrait-radius', 1.60],
+  ['--identity-gap', 3.50],
+  ['--kicker-margin', 0.75],
+  ['--subline-margin', 0.70],
+  ['--logo-width', 27.0],
+  ['--logo-height', 12.0],
+  ['--week-height', 6.0],
+  ['--week-radius', 1.20],
+  ['--grid-day-height', 8.50],
+  ['--grid-column-gap', 1.00],
+  ['--grid-top-pad', 0.90],
+  ['--day-head-pad-x', 1.10],
+  ['--grid-meal-height', 6.50],
+  ['--meal-margin', 0.35],
+  ['--foot-height', 3.80],
+  ['--foot-pad-top', 0.55]
+];
+
+const PRINT_FIXED_PT = [
+  ['--portrait-font', 14.5],
+  ['--kicker-font', 6.5],
+  ['--name-font', 16.0],
+  ['--subline-font', 5.8],
+  ['--week-font', 6.6],
+  ['--day-title-font', 10.0],
+  ['--day-count-font', 4.7],
+  ['--meal-font', 8.0],
+  ['--foot-font', 4.3]
+];
+
+function lerp(
+  start,
+  end,
+  ratio
+) {
+  return start +
+    (end - start) * ratio;
+}
+
+function printMetric(
+  name,
+  ratio
+) {
+  if (ratio >= 0) {
+    return lerp(
+      PRINT_METRICS.compact[name],
+      PRINT_METRICS.comfort[name],
+      Math.min(1, ratio)
+    );
+  }
+
+  if (ratio >= -1) {
+    return lerp(
+      PRINT_METRICS.emergency[name],
+      PRINT_METRICS.compact[name],
+      Math.max(0, ratio + 1)
+    );
+  }
+
+  return lerp(
+    PRINT_METRICS.ultra[name],
+    PRINT_METRICS.emergency[name],
+    Math.max(0, Math.min(1, ratio + 2))
+  );
+}
+
+function setPrintVariable(
+  name,
+  value,
+  unit = ''
+) {
+  const printSheet = $('printSheet');
+  if (!printSheet) return;
+
+  printSheet.style.setProperty(
+    name,
+    `${Number(value).toFixed(3)}${unit}`
+  );
+}
+
+function applyPrintMetrics(
+  ratio
+) {
+  const printSheet = $('printSheet');
+  if (!printSheet) return;
+
+  /*
+   * Variables réellement adaptatives : uniquement le contenu des
+   * demi-journées et des tuiles d'activités.
+   */
+  const mm = [
+    ['--period-pad', 'periodPad'],
+    ['--period-title-margin', 'periodTitleMargin'],
+    ['--card-gap', 'cardGap'],
+    ['--card-pad-y', 'cardPadY'],
+    ['--card-pad-left', 'cardPadLeft'],
+    ['--card-border', 'cardBorder'],
+    ['--card-radius', 'cardRadius'],
+    ['--activity-title-margin', 'activityTitleMargin'],
+    ['--activity-time-pad-y', 'activityTimePadY'],
+    ['--activity-time-pad-x', 'activityTimePadX'],
+    ['--activity-meta-margin', 'activityMetaMargin'],
+    ['--activity-desc-margin', 'activityDescMargin'],
+    ['--activity-logo-size', 'activityLogoSize'],
+    ['--activity-logo-offset', 'activityLogoOffset'],
+    ['--empty-min-height', 'emptyMinHeight'],
+    ['--empty-pad', 'emptyPad']
+  ];
+
+  const pt = [
+    ['--period-title-font', 'periodTitleFont'],
+    ['--activity-title-font', 'activityTitleFont'],
+    ['--activity-time-font', 'activityTimeFont'],
+    ['--activity-meta-font', 'activityMetaFont'],
+    ['--activity-desc-font', 'activityDescFont'],
+    ['--empty-font', 'emptyFont']
+  ];
+
+  for (const [variable, metric] of mm) {
+    setPrintVariable(
+      variable,
+      printMetric(metric, ratio),
+      'mm'
+    );
+  }
+
+  for (const [variable, metric] of pt) {
+    setPrintVariable(
+      variable,
+      printMetric(metric, ratio),
+      'pt'
+    );
+  }
+
+  setPrintVariable(
+    '--activity-meta-line',
+    printMetric('activityMetaLine', ratio)
+  );
+
+  setPrintVariable(
+    '--activity-desc-line',
+    printMetric('activityDescLine', ratio)
+  );
+
+  /*
+   * La structure est réappliquée à chaque essai afin qu'une recherche de
+   * densité ne puisse jamais réduire le bandeau d'identité ou les bandeaux.
+   */
+  for (const [variable, value] of PRINT_FIXED_MM) {
+    setPrintVariable(variable, value, 'mm');
+  }
+
+  for (const [variable, value] of PRINT_FIXED_PT) {
+    setPrintVariable(variable, value, 'pt');
+  }
+
+  const logoSize =
+    printMetric(
+      'activityLogoSize',
+      ratio
+    );
+
+  const rightPadding =
+    logoSize +
+    Math.max(
+      1.3,
+      printMetric(
+        'activityLogoOffset',
+        ratio
+      ) * 2 + 0.6
+    );
+
+  setPrintVariable(
+    '--card-pad-right',
+    rightPadding,
+    'mm'
+  );
+
+  printSheet.dataset.printRatio =
+    ratio.toFixed(3);
+
+  printSheet.dataset.printMode =
+    ratio >= 0.72
+      ? 'confort-max'
+      : ratio >= 0.35
+        ? 'confort'
+        : ratio >= 0.05
+          ? 'standard'
+          : ratio >= 0
+            ? 'compact'
+            : ratio >= -1
+              ? 'urgence'
+              : 'ultra';
+}
+
+function currentPrintFormat() {
+  return (
+    $('formatSelect')?.value === 'a3'
+      ? 'a3'
+      : 'a4'
+  );
+}
+
+function applyPrintPageRule() {
+  const format =
+    PRINT_FORMATS[
+      currentPrintFormat()
+    ];
+
+  let style =
+    $('dynamicPrintPageRule');
+
+  if (!style) {
+    style = document.createElement(
+      'style'
+    );
+    style.id =
+      'dynamicPrintPageRule';
+    document.head.appendChild(
+      style
+    );
+  }
+
+  style.textContent = `
+    @page {
+      size: ${format.pageSize} landscape;
+      margin: ${format.margin};
+    }
+  `;
+
+  const printSheet =
+    $('printSheet');
+
+  if (printSheet) {
+    printSheet.style.setProperty(
+      '--print-page-width',
+      `${format.widthMm}mm`
+    );
+
+    printSheet.style.setProperty(
+      '--print-page-height',
+      `${format.heightMm}mm`
+    );
+  }
+}
+
+function printPeriodMarkup(
+  period,
+  label
+) {
+  if (period) {
+    return period.innerHTML;
+  }
+
+  return `
+    <div class="period-title">
+      ${esc(label)}
+    </div>
+  `;
+}
+
+function buildPrintSheet() {
+  const printSheet =
+    $('printSheet');
+
+  const weekGrid =
+    $('weekGrid');
+
+  if (
+    !printSheet ||
+    !weekGrid
+  ) {
+    return;
+  }
+
+  const dayArticles = [
+    ...weekGrid.querySelectorAll(
+      ':scope > .day'
+    )
+  ];
+
+  if (!dayArticles.length) {
+    printSheet.innerHTML = '';
+    return;
+  }
+
+  const portraitHtml =
+    $('portrait')?.innerHTML ||
+    '<span>?</span>';
+
+  const personName =
+    $('personName')?.textContent ||
+    '—';
+
+  const presence =
+    $('presenceText')?.textContent ||
+    '';
+
+  const printDate =
+    $('printDate')?.textContent ||
+    '';
+
+  const logoSrc =
+    $('siteLogo')?.getAttribute(
+      'src'
+    ) ||
+    'logo.png';
+
+  const headerCells = [];
+  const morningCells = [];
+  const afternoonCells = [];
+
+  for (
+    let index = 0;
+    index < DAYS.length;
+    index += 1
+  ) {
+    const day = DAYS[index];
+    const article =
+      dayArticles[index];
+
+    const dayColor =
+      article?.style.getPropertyValue(
+        '--day-color'
+      ) ||
+      DAY_COLORS[day];
+
+    const dayBackground =
+      article?.style.getPropertyValue(
+        '--day-background'
+      ) ||
+      hexToRgba(
+        DAY_COLORS[day],
+        opacityFor(day)
+      );
+
+    const dayHead =
+      article?.querySelector(
+        '.day-head'
+      );
+
+    const dayCount =
+      dayHead?.querySelector('span')
+        ?.textContent ||
+      '';
+
+    const periods = article
+      ? [
+          ...article.querySelectorAll(
+            '.period'
+          )
+        ]
+      : [];
+
+    const morning =
+      periods.find(
+        (period) =>
+          period.classList.contains(
+            'period-matin'
+          )
+      ) ||
+      null;
+
+    const afternoon =
+      periods.find(
+        (period) =>
+          !period.classList.contains(
+            'period-matin'
+          )
+      ) ||
+      null;
+
+    const absentClass =
+      article?.classList.contains(
+        'day-absent'
+      )
+        ? ' is-absent'
+        : '';
+
+    const cssVars =
+      `--day-color:${dayColor};` +
+      `--day-background:${dayBackground};`;
+
+    headerCells.push(`
+      <div
+        class="print-day-head"
+        style="${cssVars}"
+      >
+        <h3>${esc(day)}</h3>
+        <span>${esc(dayCount)}</span>
+      </div>
+    `);
+
+    morningCells.push(`
+      <section
+        class="print-period print-morning${absentClass}"
+        style="${cssVars}"
+      >
+        ${printPeriodMarkup(
+          morning,
+          'Matin'
+        )}
+      </section>
+    `);
+
+    afternoonCells.push(`
+      <section
+        class="print-period print-afternoon${absentClass}"
+        style="${cssVars}"
+      >
+        ${printPeriodMarkup(
+          afternoon,
+          'Après-midi'
+        )}
+      </section>
+    `);
+  }
+
+  printSheet.className =
+    'print-sheet';
+
+  printSheet.innerHTML = `
+    <header class="print-page-head">
+      <div class="print-page-identity">
+        <div class="print-page-portrait">
+          ${portraitHtml}
+        </div>
+
+        <div class="print-page-titles">
+          <p class="print-page-kicker">
+            SAJ Anagallis - Planning 2026-27
+          </p>
+          <h1 class="print-page-name">
+            ${esc(personName)}
+          </h1>
+          <div class="print-page-subline">
+            ${esc(presence)}
+            ${
+              printDate
+                ? ` - ${esc(printDate)}`
+                : ''
+            }
+          </div>
+        </div>
+      </div>
+
+      <img
+        class="print-page-logo"
+        src="${esc(logoSrc)}"
+        alt="Logo du service"
+      >
+    </header>
+
+    <div class="print-planning-grid">
+      ${headerCells.join('')}
+      ${morningCells.join('')}
+
+      <div class="print-meal-row">
+        12 h - Repas
+      </div>
+
+      ${afternoonCells.join('')}
+    </div>
+
+    <footer class="print-page-foot">
+      Odynéo - Les Tourrais de Craponne - Service d'accueil de Jour Anagallis.
+    </footer>
+  `;
+}
+
+function requiredPeriodHeight(
+  cell
+) {
+  if (!cell) return 0;
+
+  const cellRect =
+    cell.getBoundingClientRect();
+
+  const style =
+    getComputedStyle(cell);
+
+  const paddingBottom =
+    Number.parseFloat(
+      style.paddingBottom
+    ) || 0;
+
+  const lastChild =
+    cell.lastElementChild;
+
+  if (!lastChild) {
+    return (
+      (Number.parseFloat(
+        style.paddingTop
+      ) || 0) +
+      paddingBottom
+    );
+  }
+
+  const lastRect =
+    lastChild.getBoundingClientRect();
+
+  return Math.max(
+    0,
+    lastRect.bottom -
+      cellRect.top +
+      paddingBottom
+  );
+}
+
+function balancePrintPeriodRows() {
+  const printSheet =
+    $('printSheet');
+
+  if (!printSheet) return;
+
+  /*
+   * Une première mesure à 50/50 permet de connaître la hauteur réellement
+   * nécessaire au contenu de chaque demi-journée, indépendamment du nombre
+   * total d'activités de la semaine.
+   */
+  printSheet.style.setProperty(
+    '--print-morning-track',
+    '1fr'
+  );
+
+  printSheet.style.setProperty(
+    '--print-afternoon-track',
+    '1fr'
+  );
+
+  void printSheet.offsetHeight;
+
+  const mornings = [
+    ...printSheet.querySelectorAll(
+      '.print-morning'
+    )
+  ];
+
+  const afternoons = [
+    ...printSheet.querySelectorAll(
+      '.print-afternoon'
+    )
+  ];
+
+  const morningNeed =
+    Math.max(
+      1,
+      ...mornings.map(
+        requiredPeriodHeight
+      )
+    );
+
+  const afternoonNeed =
+    Math.max(
+      1,
+      ...afternoons.map(
+        requiredPeriodHeight
+      )
+    );
+
+  const totalNeed =
+    morningNeed +
+    afternoonNeed;
+
+  let morningShare =
+    morningNeed /
+    totalNeed;
+
+  /*
+   * On évite qu'une demi-journée très légère écrase totalement l'autre.
+   * 27 % / 73 % est le compromis retenu pour garder une structure lisible.
+   */
+  morningShare =
+    Math.min(
+      0.73,
+      Math.max(
+        0.27,
+        morningShare
+      )
+    );
+
+  const afternoonShare =
+    1 - morningShare;
+
+  printSheet.style.setProperty(
+    '--print-morning-track',
+    `${morningShare.toFixed(4)}fr`
+  );
+
+  printSheet.style.setProperty(
+    '--print-afternoon-track',
+    `${afternoonShare.toFixed(4)}fr`
+  );
+
+  printSheet.dataset.morningShare =
+    morningShare.toFixed(3);
+
+  printSheet.dataset.afternoonShare =
+    afternoonShare.toFixed(3);
+
+  void printSheet.offsetHeight;
+}
+
+function printLayoutFits() {
+  const printSheet =
+    $('printSheet');
+
+  if (!printSheet) {
+    return true;
+  }
+
+  const tolerance = 1.5;
+
+  const pageRect =
+    printSheet.getBoundingClientRect();
+
+  const pageOverflow =
+    printSheet.scrollHeight >
+      printSheet.clientHeight +
+        tolerance ||
+    printSheet.scrollWidth >
+      printSheet.clientWidth +
+        tolerance;
+
+  const grid =
+    printSheet.querySelector(
+      '.print-planning-grid'
+    );
+
+  const gridOverflow =
+    grid
+      ? (
+          grid.scrollHeight >
+            grid.clientHeight +
+              tolerance ||
+          grid.scrollWidth >
+            grid.clientWidth +
+              tolerance
+        )
+      : false;
+
+  const periods = [
+    ...printSheet.querySelectorAll(
+      '.print-period'
+    )
+  ];
+
+  const periodOverflow =
+    periods.some(
+      (cell) => {
+        const cellRect =
+          cell.getBoundingClientRect();
+
+        const required =
+          requiredPeriodHeight(
+            cell
+          );
+
+        const verticalOverflow =
+          required >
+            cell.clientHeight -
+              tolerance;
+
+        const horizontalOverflow =
+          cell.scrollWidth >
+            cell.clientWidth +
+              tolerance;
+
+        const outsidePage =
+          cellRect.bottom >
+            pageRect.bottom +
+              tolerance ||
+          cellRect.right >
+            pageRect.right +
+              tolerance;
+
+        return (
+          verticalOverflow ||
+          horizontalOverflow ||
+          outsidePage
+        );
+      }
+    );
+
+  const header =
+    printSheet.querySelector(
+      '.print-page-head'
+    );
+
+  const headerOverflow =
+    header
+      ? (
+          header.scrollHeight >
+            header.clientHeight +
+              tolerance ||
+          header.scrollWidth >
+            header.clientWidth +
+              tolerance
+        )
+      : false;
+
+  const footer =
+    printSheet.querySelector(
+      '.print-page-foot'
+    );
+
+  const footerOutsidePage =
+    footer
+      ? footer
+          .getBoundingClientRect()
+          .bottom >
+        pageRect.bottom +
+          tolerance
+      : false;
+
+  return !(
+    pageOverflow ||
+    gridOverflow ||
+    periodOverflow ||
+    headerOverflow ||
+    footerOutsidePage
+  );
+}
+
+function testPrintRatio(
+  ratio
+) {
+  applyPrintMetrics(
+    ratio
+  );
+
+  balancePrintPeriodRows();
+
+  /* Force un recalcul complet avant le contrôle des débordements. */
+  void $('printSheet')?.offsetHeight;
+
+  return printLayoutFits();
+}
+
+function chooseAdaptivePrintSize() {
+  const printSheet =
+    $('printSheet');
+
+  if (!printSheet) {
+    return;
+  }
+
+  applyPrintPageRule();
+
+  document.body.classList.add(
+    'print-measure'
+  );
+
+  let low =
+    PRINT_RATIO_MIN;
+
+  let high =
+    PRINT_RATIO_MAX;
+
+  let best =
+    PRINT_RATIO_MIN;
+
+  /*
+   * Si même le mode d'urgence ne rentrait pas, on le conserve quand même :
+   * c'est la taille minimale autorisée. Dans les données actuelles, le mode
+   * compact précédent tient déjà, donc cette branche n'est qu'une sécurité.
+   */
+  if (testPrintRatio(low)) {
+    for (
+      let step = 0;
+      step < PRINT_SEARCH_STEPS;
+      step += 1
+    ) {
+      const middle =
+        (low + high) / 2;
+
+      if (testPrintRatio(middle)) {
+        best = middle;
+        low = middle;
+      } else {
+        high = middle;
+      }
+    }
+  } else {
+    best =
+      PRINT_RATIO_MIN;
+  }
+
+  /*
+   * Marge de sûreté pour les légères différences de métriques entre
+   * l'aperçu écran et le moteur d'impression de Firefox / Chromium.
+   */
+  const safeBest =
+    best > 0
+      ? best *
+        PRINT_SAFETY_RATIO
+      : best;
+
+  applyPrintMetrics(
+    safeBest
+  );
+
+  balancePrintPeriodRows();
+
+  document.body.classList.remove(
+    'print-measure'
+  );
+
+  console.info(
+    '[Planning individuel] Impression adaptative',
+    {
+      personne:
+        $('personName')?.textContent || '',
+      format:
+        currentPrintFormat(),
+      ratio:
+        Number(
+          safeBest.toFixed(3)
+        ),
+      mode:
+        printSheet.dataset.printMode,
+      matin:
+        printSheet.dataset.morningShare,
+      apresMidi:
+        printSheet.dataset.afternoonShare,
+      enteteFixe: '19mm',
+      portraitFixe: '17mm',
+      nomFixe: '16pt'
+    }
+  );
+}
+
+function waitForPrintImages(
+  timeout = 1800
+) {
+  const printSheet =
+    $('printSheet');
+
+  if (!printSheet) {
+    return Promise.resolve();
+  }
+
+  const images = [
+    ...printSheet.querySelectorAll(
+      'img'
+    )
+  ];
+
+  const pending = images
+    .filter(
+      (image) => !image.complete
+    )
+    .map(
+      (image) =>
+        new Promise(
+          (resolve) => {
+            const done = () => {
+              image.removeEventListener(
+                'load',
+                done
+              );
+
+              image.removeEventListener(
+                'error',
+                done
+              );
+
+              resolve();
+            };
+
+            image.addEventListener(
+              'load',
+              done,
+              { once: true }
+            );
+
+            image.addEventListener(
+              'error',
+              done,
+              { once: true }
+            );
+          }
+        )
+    );
+
+  if (!pending.length) {
+    return Promise.resolve();
+  }
+
+  return Promise.race([
+    Promise.all(pending),
+    new Promise(
+      (resolve) =>
+        setTimeout(
+          resolve,
+          timeout
+        )
+    )
+  ]);
+}
+
+async function waitForPrintFonts() {
+  if (!document.fonts?.ready) {
+    return;
+  }
+
+  try {
+    await document.fonts.ready;
+  } catch (_) {
+    /* Une police système reste utilisable si FontFaceSet n'est pas disponible. */
+  }
+}
+
+async function preparePrintLayout() {
+  updatePrintDate();
+  applyPrintPageRule();
+  buildPrintSheet();
+
+  await Promise.all([
+    waitForPrintImages(),
+    waitForPrintFonts()
+  ]);
+
+  chooseAdaptivePrintSize();
+}
+
 /* =========================================================
    CARTE ACTIVITÉ
    ========================================================= */
@@ -1664,6 +2875,8 @@ $('formatSelect')
         'print-a3',
         event.target.value === 'a3'
       );
+
+      applyPrintPageRule();
     }
   );
 
@@ -1683,7 +2896,8 @@ for (const day of DAYS) {
 $('printBtn')
   .addEventListener(
     'click',
-    () => {
+    async () => {
+      await preparePrintLayout();
       window.print();
     }
   );
@@ -1693,11 +2907,21 @@ $('reloadBtn')
   .addEventListener(
     'click',
     () => {
-      window.addEventListener('beforeprint', updatePrintDate);
       fetchAll()
         .catch(showError);
     }
   );
+
+
+window.addEventListener(
+  'beforeprint',
+  () => {
+    updatePrintDate();
+    applyPrintPageRule();
+    buildPrintSheet();
+    chooseAdaptivePrintSize();
+  }
+);
 
 
 /* =========================================================
