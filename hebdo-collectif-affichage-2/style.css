@@ -1,0 +1,1883 @@
+/* ==========================================================
+   VARIABLES
+   ========================================================== */
+
+:root {
+
+  --ink: #183042;
+
+  --muted: #687883;
+
+  --line: #dbe5ea;
+
+  --paper: #ffffff;
+
+  --background: #eef3f6;
+
+  --purple: #6421a8;
+
+  --purple-dark: #50178c;
+
+  --purple-soft: #f2eafb;
+
+}
+
+
+/* ==========================================================
+   RESET
+   ========================================================== */
+
+* {
+  box-sizing: border-box;
+}
+
+
+html,
+body {
+
+  margin: 0;
+
+  padding: 0;
+
+  min-height: 100%;
+
+  font-family:
+    Inter,
+    Segoe UI,
+    Arial,
+    sans-serif;
+
+  color:
+    var(--ink);
+
+  background:
+    var(--background);
+
+}
+
+
+.hidden {
+  display: none !important;
+}
+
+
+/* ==========================================================
+   BARRE SUPÉRIEURE
+   ========================================================== */
+
+.toolbar {
+
+  position: sticky;
+
+  top: 0;
+
+  z-index: 100;
+
+  display: flex;
+
+  justify-content:
+    space-between;
+
+  align-items: center;
+
+  gap: 20px;
+
+  padding:
+    12px
+    20px;
+
+  background: white;
+
+  border-bottom:
+    1px solid
+    var(--line);
+
+  box-shadow:
+    0 3px 12px
+    rgba(23,48,66,.08);
+
+}
+
+
+/* ==========================================================
+   IDENTITÉ
+   ========================================================== */
+
+.brand {
+
+  display: flex;
+
+  align-items: center;
+
+  gap: 12px;
+
+}
+
+
+.brand-mark {
+
+  width: 46px;
+
+  height: 46px;
+
+  display: grid;
+
+  place-items: center;
+
+  border-radius: 14px;
+
+  background:
+    var(--purple);
+
+  color: white;
+
+  font-weight: 900;
+
+}
+
+
+.brand h1 {
+
+  margin: 0;
+
+  font-size: 18px;
+
+}
+
+
+.brand p {
+
+  margin:
+    2px
+    0
+    0;
+
+  color:
+    var(--muted);
+
+  font-size: 12px;
+
+}
+
+
+/* ==========================================================
+   BOUTON IMPRESSION
+   ========================================================== */
+
+#printBtn {
+
+  min-height: 40px;
+
+  padding:
+    0
+    18px;
+
+  border: none;
+
+  border-radius: 9px;
+
+  background:
+    var(--purple);
+
+  color: white;
+
+  font-size: 14px;
+
+  font-weight: 800;
+
+  cursor: pointer;
+
+}
+
+
+#printBtn:hover {
+
+  background:
+    var(--purple-dark);
+
+}
+
+
+/* ==========================================================
+   APPLICATION
+   ========================================================== */
+
+#app {
+
+  padding: 22px;
+
+}
+
+
+/* ==========================================================
+   CHARGEMENT
+   ========================================================== */
+
+.status {
+
+  max-width: 900px;
+
+  margin:
+    45px
+    auto;
+
+  padding: 28px;
+
+  text-align: center;
+
+  background: white;
+
+  border:
+    1px solid
+    var(--line);
+
+  border-radius: 16px;
+
+}
+
+
+.status.error {
+
+  color: #a43434;
+
+}
+
+
+/* ==========================================================
+   CONTENEUR DES JOURS
+   ========================================================== */
+
+.pages {
+
+  display: flex;
+
+  flex-direction: column;
+
+  align-items: center;
+
+  gap: 30px;
+
+}
+
+
+/* ==========================================================
+   PAGE D'UN JOUR
+   ========================================================== */
+
+.day-page {
+
+  width:
+    min(
+      100%,
+      1080px
+    );
+
+  min-height: 1450px;
+
+  display: flex;
+
+  flex-direction: column;
+
+  overflow: hidden;
+
+  background:
+    white;
+
+  border-radius: 18px;
+
+  box-shadow:
+    0 8px 30px
+    rgba(23,48,66,.12);
+
+}
+
+
+/* ==========================================================
+   TITRE JOUR
+   ========================================================== */
+
+.day-title {
+
+  min-height: 78px;
+
+  flex:
+    0
+    0
+    auto;
+
+  display: flex;
+
+  align-items: center;
+
+  justify-content: center;
+
+  padding:
+    14px
+    20px;
+
+  background:
+    var(--day-color);
+
+  color: white;
+
+  font-size: 34px;
+
+  font-weight: 900;
+
+  text-transform:
+    uppercase;
+
+  letter-spacing:
+    .08em;
+
+}
+
+
+/* ==========================================================
+   CONTENU JOUR
+   ========================================================== */
+
+.day-body {
+
+  flex: 1;
+
+  display: flex;
+
+  flex-direction: column;
+
+  min-height: 0;
+
+  background:
+    var(--day-background);
+
+}
+
+
+/* ==========================================================
+   PÉRIODE
+   ========================================================== */
+
+.period {
+
+  padding:
+    24px
+    30px;
+
+}
+
+
+/* ==========================================================
+   MATIN
+   ========================================================== */
+
+.period-morning {
+
+  flex:
+    0
+    0
+    auto;
+
+}
+
+
+/* ==========================================================
+   APRÈS-MIDI
+   ========================================================== */
+
+.period-afternoon {
+
+  flex:
+    1
+    1
+    auto;
+
+}
+
+
+/* ==========================================================
+   TITRE PÉRIODE
+   ========================================================== */
+
+.period-title {
+
+  margin-bottom: 16px;
+
+  font-size: 21px;
+
+  font-weight: 900;
+
+  text-transform:
+    uppercase;
+
+  letter-spacing:
+    .08em;
+
+}
+
+
+/* ==========================================================
+   LISTE ACTIVITÉS
+   ========================================================== */
+
+.activities-list {
+
+  display: grid;
+
+  grid-template-columns:
+    repeat(
+      2,
+      minmax(0, 1fr)
+    );
+
+  gap: 20px;
+
+  align-items: start;
+
+}
+
+
+.activities-list .activity-card {
+
+  grid-column:
+    1 / -1;
+
+}
+
+
+.activities-list .activity-card--half {
+
+  grid-column:
+    span 1;
+
+}
+
+
+/* ==========================================================
+   CARTE ACTIVITÉ
+   ========================================================== */
+
+.activity-card {
+
+  position: relative;
+
+  width: 100%;
+
+  padding:
+    20px;
+
+  background:
+    rgba(255,255,255,.95);
+
+  border:
+    3px solid
+    var(--card-color);
+
+  border-left:
+    7px solid
+    var(--card-color);
+
+  border-radius: 12px;
+
+  break-inside: avoid;
+
+  page-break-inside: avoid;
+
+}
+
+
+/* ==========================================================
+   EN-TÊTE ACTIVITÉ
+   ========================================================== */
+
+.activity-header {
+
+  position: relative;
+
+  min-height: 110px;
+
+  padding-right: 135px;
+
+}
+
+/* ==========================================================
+   PROFESSIONNELS + REMARQUES SOUS L’HORAIRE
+   Optimisation V15 conservée sur la base CSS personnalisée
+   ========================================================== */
+
+.activity-header
+.activity-meta,
+.activity-header
+.activity-remarks {
+
+  margin-top: 6px;
+
+  line-height: 1.25;
+
+}
+
+
+.activity-header
+.activity-time
++
+.activity-meta,
+.activity-header
+.activity-time
++
+.activity-remarks {
+
+  margin-top: 7px;
+
+}
+
+
+
+/* ==========================================================
+   TITRE ACTIVITÉ
+   ========================================================== */
+
+.activity-title {
+
+  margin:
+    0
+    0
+    10px;
+
+  font-size: 29px;
+
+  line-height: 1.08;
+
+  color:
+    #252542;
+
+  font-variant-caps: small-caps;
+
+}
+
+
+/* ==========================================================
+   HORAIRE
+   ========================================================== */
+
+.activity-time {
+
+  display:
+    inline-flex;
+
+  align-items: center;
+
+  padding:
+    6px
+    12px;
+
+  border-radius:
+    999px;
+
+  background:
+    var(--purple-soft);
+
+  color:
+    var(--purple);
+
+  font-size: 19px;
+
+  font-weight: 900;
+
+}
+
+
+/* ==========================================================
+   PICTOGRAMME ACTIVITÉ
+   ========================================================== */
+
+.activity-logo {
+
+  position: absolute;
+
+  top: 0;
+
+  right: 0;
+
+  width: 150px;
+
+  height: 150px;
+
+  object-fit: contain;
+
+  object-position: center;
+
+  border-radius: 10px;
+
+  background: white;
+
+}
+
+
+/* ==========================================================
+   ANIMATEURS
+   ========================================================== */
+
+.activity-meta {
+
+  margin-top: 15px;
+
+  font-size: 18px;
+
+  font-variant-caps: small-caps;
+
+  line-height: 1.4;
+
+  color:
+    #4e626e;
+
+}
+
+
+.activity-meta strong {
+
+  color:
+    var(--ink);
+
+}
+
+
+/* ==========================================================
+   REMARQUES PLANNING
+   ========================================================== */
+
+.activity-remarks {
+
+  margin-top: 15px;
+
+  font-size: 18px;
+  
+  font-variant-caps: small-caps;
+
+  line-height: 1.4;
+
+  color:
+    #4e626e;
+
+}
+
+
+/* ==========================================================
+   TITRE PARTICIPANTS
+   ========================================================== */
+
+.participants-title {
+
+  margin-top: 20px;
+
+  margin-bottom: 14px;
+
+  padding-top: 12px;
+
+  border-top:
+    2px solid
+    #e3e8eb;
+
+  color:
+    #354c5b;
+
+  font-size: 18px;
+
+  font-weight: 700;
+
+  text-transform:
+    uppercase;
+
+  letter-spacing:
+    .05em;
+
+}
+
+
+/* ==========================================================
+   GRILLE PARTICIPANTS DYNAMIQUE
+   ========================================================== */
+
+.participants-grid {
+
+  width: 100%;
+
+  display: grid;
+  font-variant-caps: small-caps;
+
+  /*
+   * IMPORTANT
+   *
+   * AUCUN NOMBRE DE COLONNES FIXE.
+   *
+   * Le navigateur choisit automatiquement
+   * le nombre de colonnes selon :
+   *
+   * - largeur disponible
+   * - taille minimale d'une personne
+   * - largeur de la page
+   */
+
+  grid-template-columns:
+    repeat(
+      auto-fill,
+      125px
+    );
+
+
+  gap:
+    18px
+    12px;
+
+  align-items: start;
+
+  justify-content: start;
+
+  justify-items: start;
+
+}
+
+
+/* ==========================================================
+   PARTICIPANT
+   ========================================================== */
+
+.participant {
+
+  width: 100%;
+
+  min-width: 0;
+
+  display: flex;
+
+  flex-direction: column;
+
+  align-items: flex-start;
+
+  justify-content: flex-start;
+
+  text-align: left;
+
+}
+
+
+/* ==========================================================
+   PHOTO PARTICIPANT
+   110 × 110 PX
+   ========================================================== */
+
+.participant-photo {
+
+  width: 110px;
+
+  height: 110px;
+
+  min-width: 110px;
+
+  min-height: 110px;
+
+  max-width: 110px;
+
+  max-height: 110px;
+
+  display: grid;
+
+  place-items: center;
+
+  overflow: hidden;
+
+  border-radius: 5px;
+
+  background:
+    #edf3f5;
+
+  border:
+    3px solid
+    white;
+
+  box-shadow:
+    0 0 0 2px
+    #b7c5cc;
+
+  color:
+    var(--purple);
+
+  font-size: 24px;
+
+  font-weight: 900;
+
+}
+
+
+/* ==========================================================
+   IMAGE PARTICIPANT
+   ========================================================== */
+
+.participant-photo img {
+
+  display: block;
+
+  border-radius: 5px;
+
+  width: 110px;
+
+  height: 110px;
+
+  min-width: 110px;
+
+  min-height: 110px;
+
+  max-width: 110px;
+
+  max-height: 110px;
+
+  object-fit: cover;
+
+  object-position:
+    center center;
+
+}
+
+
+/* ==========================================================
+   NOM PARTICIPANT
+   ========================================================== */
+
+.participant-name {
+
+  width: 100%;
+
+  margin-top: 8px;
+
+  padding:
+    0
+    3px;
+
+  overflow: hidden;
+
+  text-overflow:
+    ellipsis;
+
+  white-space:
+    nowrap;
+
+  color:
+    var(--ink);
+
+  font-size: 15px;
+
+  font-weight: 600;
+
+}
+
+
+/* ==========================================================
+   BANDEAU REPAS
+   ========================================================== */
+
+.meal-banner {
+
+  flex:
+    0
+    0
+    48px;
+
+  width: 100%;
+
+  display: flex;
+
+  align-items: center;
+
+  justify-content: center;
+
+  background:
+    var(--purple);
+
+  color: white;
+
+  font-size: 20px;
+
+  font-weight: 900;
+
+  font-variant-caps: small-caps;
+
+  letter-spacing:
+    .04em;
+
+}
+
+
+/* ==========================================================
+   CASE VIDE
+   ========================================================== */
+
+.empty-slot {
+
+  min-height: 90px;
+
+  display: flex;
+
+  align-items: center;
+
+  justify-content: center;
+
+  padding: 20px;
+
+  border:
+    1px dashed
+    #bdcbd1;
+
+  border-radius: 10px;
+
+  background:
+    rgba(255,255,255,.45);
+
+  color:
+    #899aa3;
+
+  font-size: 15px;
+
+  text-align: center;
+
+}
+
+
+/* ==========================================================
+   PIED PAGE
+   ========================================================== */
+
+.page-footer {
+
+  flex:
+    0
+    0
+    auto;
+
+  padding:
+    10px
+    20px;
+
+  border-top:
+    1px solid
+    var(--line);
+
+  background: white;
+
+  color:
+    #8b999f;
+
+  text-align: center;
+
+  font-size: 9px;
+
+}
+
+
+/* ==========================================================
+   DIALOGUE
+   ========================================================== */
+
+dialog {
+
+  border: 0;
+
+  border-radius: 14px;
+
+  max-width: 620px;
+
+  box-shadow:
+    0 20px 60px
+    rgba(0,0,0,.20);
+
+}
+
+
+dialog pre {
+
+  white-space:
+    pre-wrap;
+
+  background:
+    #f5f7f8;
+
+  padding: 12px;
+
+  border-radius: 8px;
+
+}
+
+
+/* ==========================================================
+   ÉCRAN MOYEN
+   ========================================================== */
+
+@media screen and (max-width: 900px) {
+
+  .activity-title {
+    font-size: 24px;
+  }
+
+
+  .activity-logo {
+
+    width: 90px;
+
+    height: 90px;
+
+  }
+
+
+  .activity-header {
+
+    min-height: 90px;
+
+    padding-right: 105px;
+
+  }
+
+
+  .activities-list {
+
+    grid-template-columns:
+      1fr;
+
+  }
+
+
+  .activities-list .activity-card,
+  .activities-list .activity-card--half {
+
+    grid-column:
+      1;
+
+  }
+
+
+  .participants-grid {
+
+    grid-template-columns:
+      repeat(
+        auto-fill,
+        115px
+      );
+
+    justify-content:
+      start;
+
+    justify-items:
+      start;
+
+  }
+
+
+  .participant-photo,
+  .participant-photo img {
+
+    width: 100px;
+
+    height: 100px;
+
+    min-width: 100px;
+
+    min-height: 100px;
+
+    max-width: 100px;
+
+    max-height: 100px;
+
+  }
+
+}
+
+
+/* ==========================================================
+   ÉCRAN PETIT
+   ========================================================== */
+
+@media screen and (max-width: 600px) {
+
+  #app {
+
+    padding: 8px;
+
+  }
+
+
+  .period {
+
+    padding:
+      18px
+      14px;
+
+  }
+
+
+  .participants-grid {
+
+    grid-template-columns:
+      repeat(
+        auto-fill,
+        105px
+      );
+
+    justify-content:
+      start;
+
+    justify-items:
+      start;
+
+  }
+
+
+  .participant-photo,
+  .participant-photo img {
+
+    width: 95px;
+
+    height: 95px;
+
+    min-width: 95px;
+
+    min-height: 95px;
+
+    max-width: 95px;
+
+    max-height: 95px;
+
+  }
+
+}
+
+
+/* ==========================================================
+   IMPRESSION
+   UNE DEMI-JOURNÉE PAR PAGE A3
+   ========================================================== */
+
+@page {
+
+  size:
+    A3 portrait;
+
+  margin: 5mm;
+
+}
+
+@media print {
+
+
+  html,
+  body {
+
+    margin: 0;
+
+    padding: 0;
+
+    background: white;
+
+    -webkit-print-color-adjust:
+      exact !important;
+
+    print-color-adjust:
+      exact !important;
+
+  }
+
+
+  .no-print,
+  .status {
+
+    display:
+      none !important;
+
+  }
+
+
+  #app {
+
+    padding: 0;
+
+  }
+
+
+  .pages {
+
+    display:
+      block !important;
+
+  }
+
+
+  /*
+   * Une demi-journée = une page A3.
+   * La taille des éléments s'adapte au nombre d'activités
+   * afin de conserver toute la demi-journée sur la feuille.
+   */
+  .day-page {
+
+    display:
+      contents;
+
+    width: auto;
+
+    min-height: 0;
+
+    margin: 0;
+
+    padding: 0;
+
+    background: transparent;
+
+    border-radius: 0;
+
+    box-shadow: none;
+
+    overflow: visible;
+
+  }
+
+
+  .day-title,
+  .meal-banner,
+  .page-footer {
+
+    display:
+      none !important;
+
+  }
+
+
+  .day-body {
+
+    display:
+      contents;
+
+  }
+
+
+  /* ========================================================
+     PAGE A3 = UNE DEMI-JOURNÉE
+     ======================================================== */
+
+  .period {
+
+    /*
+     * Facteur réel de redimensionnement à l'impression.
+     * Contrairement à transform: scale(), il modifie réellement
+     * la taille des éléments et donc la pagination Firefox.
+     */
+    --print-fit-factor:
+      1;
+
+    /*
+     * Taille standard d'impression.
+     * Les variantes plus denses sont définies plus bas.
+     */
+    --print-photo:
+      96px;
+
+    --print-person-width:
+      108px;
+
+    --print-logo:
+      96px;
+
+    --print-header:
+      96px;
+
+    --print-title:
+      24px;
+
+    --print-time:
+      16px;
+
+    --print-meta:
+      15px;
+
+    --print-people-title:
+      15px;
+
+    --print-name:
+      13px;
+
+    --print-card-padding:
+      14px;
+
+    --print-card-gap:
+      12px;
+
+    --print-people-gap-x:
+      10px;
+
+    --print-people-gap-y:
+      12px;
+
+
+    box-sizing:
+      border-box;
+
+    width:
+      100%;
+
+    height:
+      calc(420mm - 10mm);
+
+    min-height:
+      calc(420mm - 10mm);
+
+    max-height:
+      calc(420mm - 10mm);
+
+    overflow:
+      hidden;
+
+    margin: 0;
+
+    padding:
+      18px
+      22px;
+
+    background:
+      white;
+
+    break-after:
+      page;
+
+    page-break-after:
+      always;
+
+    break-inside:
+      avoid;
+
+    page-break-inside:
+      avoid;
+
+  }
+
+
+  /*
+   * 5 activités ou plus :
+   * réduction modérée pour garder de grandes photos.
+   */
+  .period:has(
+    .activities-list
+    >
+    .activity-card:nth-child(5)
+  ) {
+
+    --print-photo:
+      84px;
+
+    --print-person-width:
+      96px;
+
+    --print-logo:
+      126px;
+
+    --print-header:
+      84px;
+
+    --print-title:
+      21px;
+
+    --print-time:
+      14px;
+
+    --print-meta:
+      13px;
+
+    --print-people-title:
+      13px;
+
+    --print-name:
+      11.5px;
+
+    --print-card-padding:
+      11px;
+
+    --print-card-gap:
+      9px;
+
+    --print-people-gap-x:
+      8px;
+
+    --print-people-gap-y:
+      9px;
+
+  }
+
+
+  /*
+   * 7 activités ou plus :
+   * mode compact.
+   */
+  .period:has(
+    .activities-list
+    >
+    .activity-card:nth-child(7)
+  ) {
+
+    --print-photo:
+      64px;
+
+    --print-person-width:
+      75px;
+
+    --print-logo:
+      96px;
+
+    --print-header:
+      64px;
+
+    --print-title:
+      17.5px;
+
+    --print-time:
+      11.5px;
+
+    --print-meta:
+      10.5px;
+
+    --print-people-title:
+      10.5px;
+
+    --print-name:
+      9px;
+
+    --print-card-padding:
+      7px;
+
+    --print-card-gap:
+      5px;
+
+    --print-people-gap-x:
+      5px;
+
+    --print-people-gap-y:
+      5px;
+
+  }
+
+
+  /*
+   * 9 activités ou plus :
+   * mode très dense pour éviter qu'une demi-journée
+   * déborde de la page A3.
+   */
+  .period:has(
+    .activities-list
+    >
+    .activity-card:nth-child(9)
+  ) {
+
+    --print-photo:
+      56px;
+
+    --print-person-width:
+      66px;
+
+    --print-logo:
+      84px;
+
+    --print-header:
+      56px;
+
+    --print-title:
+      16px;
+
+    --print-time:
+      10.5px;
+
+    --print-meta:
+      9.5px;
+
+    --print-people-title:
+      9.5px;
+
+    --print-name:
+      8.5px;
+
+    --print-card-padding:
+      6px;
+
+    --print-card-gap:
+      4px;
+
+    --print-people-gap-x:
+      4px;
+
+    --print-people-gap-y:
+      4px;
+
+  }
+
+
+  .period::before {
+
+    content:
+      attr(data-day);
+
+    display:
+      block;
+
+    margin:
+      -18px
+      -22px
+      12px;
+
+    padding:
+      12px
+      16px;
+
+    background:
+      var(--day-color);
+
+    color:
+      white;
+
+    text-align:
+      center;
+
+    text-transform:
+      uppercase;
+
+    letter-spacing:
+      .08em;
+
+    font-size:
+      19px;
+
+    font-weight:
+      900;
+
+  }
+
+
+  .day-page:last-child
+  .period:last-of-type {
+
+    break-after:
+      auto;
+
+    page-break-after:
+      auto;
+
+  }
+
+
+  .period-title {
+
+    margin-bottom:
+      calc(10px * var(--print-fit-factor));
+
+    font-size:
+      calc(18px * var(--print-fit-factor));
+
+    line-height:
+      1.05;
+
+  }
+
+
+  .activities-list {
+
+    display:
+      grid;
+
+    grid-template-columns:
+      repeat(
+        2,
+        minmax(0, 1fr)
+      );
+
+    gap:
+      calc(var(--print-card-gap) * var(--print-fit-factor));
+
+    align-items:
+      start;
+
+  }
+
+
+  .activities-list
+  .activity-card {
+
+    grid-column:
+      1 / -1;
+
+  }
+
+
+  .activities-list
+  .activity-card--half {
+
+    grid-column:
+      span 1;
+
+  }
+
+
+  /* ========================================================
+     TUILES D'ACTIVITÉ
+     ======================================================== */
+
+  .activity-card {
+
+    padding:
+      calc(var(--print-card-padding) * var(--print-fit-factor));
+
+    border-left-width:
+      calc(5px * var(--print-fit-factor));
+
+    border-radius:
+      calc(8px * var(--print-fit-factor));
+
+    break-inside:
+      avoid;
+
+    page-break-inside:
+      avoid;
+
+  }
+
+
+  .activity-header {
+
+    min-height:
+      calc(var(--print-header) * var(--print-fit-factor));
+
+    padding-right:
+      calc(
+        (
+          calc(var(--print-logo) * var(--print-fit-factor))
+          +
+          10px
+        )
+        *
+        var(--print-fit-factor)
+      );
+
+  }
+
+
+  .activity-title {
+
+    margin-bottom:
+      calc(5px * var(--print-fit-factor));
+
+    font-size:
+      calc(var(--print-title) * var(--print-fit-factor));
+
+    line-height:
+      1.05;
+
+  }
+
+
+  .activity-time {
+
+    padding:
+      calc(3px * var(--print-fit-factor))
+      calc(7px * var(--print-fit-factor));
+
+    font-size:
+      calc(var(--print-time) * var(--print-fit-factor));
+
+  }
+
+
+  .activity-logo {
+
+    width:
+      calc(var(--print-logo) * var(--print-fit-factor));
+
+    height:
+      calc(var(--print-logo) * var(--print-fit-factor));
+
+    border-radius:
+      7px;
+
+  }
+
+
+  /*
+   * Remarques et professionnels :
+   * même style d'écriture.
+   */
+  .activity-remarks,
+  .activity-meta {
+
+    margin-top:
+      calc(6px * var(--print-fit-factor));
+
+    font-size:
+      calc(var(--print-meta) * var(--print-fit-factor));
+
+    line-height:
+      1.2;
+
+  }
+
+
+  .activity-header
+  .activity-meta,
+  .activity-header
+  .activity-remarks {
+
+    margin-top:
+      calc(3px * var(--print-fit-factor));
+
+    line-height:
+      1.15;
+
+  }
+
+
+  .participants-title {
+
+    margin-top:
+      calc(8px * var(--print-fit-factor));
+
+    margin-bottom:
+      calc(6px * var(--print-fit-factor));
+
+    padding-top:
+      calc(5px * var(--print-fit-factor));
+
+    font-size:
+      calc(var(--print-people-title) * var(--print-fit-factor));
+
+    line-height:
+      1.05;
+
+    border-top-width:
+      1px;
+
+  }
+
+
+  /* ========================================================
+     PARTICIPANTS ALIGNÉS À GAUCHE
+     ======================================================== */
+
+  .participants-grid {
+
+    grid-template-columns:
+      repeat(
+        auto-fill,
+        calc(var(--print-person-width) * var(--print-fit-factor))
+      );
+
+    justify-content:
+      start;
+
+    justify-items:
+      start;
+
+    align-items:
+      start;
+
+    column-gap:
+      calc(var(--print-people-gap-x) * var(--print-fit-factor));
+
+    row-gap:
+      calc(var(--print-people-gap-y) * var(--print-fit-factor));
+
+  }
+
+
+  .participant {
+
+    width:
+      calc(var(--print-person-width) * var(--print-fit-factor));
+
+    align-items:
+      flex-start;
+
+    justify-content:
+      flex-start;
+
+    text-align:
+      left;
+
+  }
+
+
+  .participant-photo,
+  .participant-photo img {
+
+    width:
+      calc(var(--print-photo) * var(--print-fit-factor));
+
+    height:
+      calc(var(--print-photo) * var(--print-fit-factor));
+
+    min-width:
+      calc(var(--print-photo) * var(--print-fit-factor));
+
+    min-height:
+      calc(var(--print-photo) * var(--print-fit-factor));
+
+    max-width:
+      calc(var(--print-photo) * var(--print-fit-factor));
+
+    max-height:
+      calc(var(--print-photo) * var(--print-fit-factor));
+
+    border-radius:
+      5px;
+
+  }
+
+
+  .participant-photo {
+
+    border-width:
+      2px;
+
+    box-shadow:
+      0 0 0 1px
+      #b7c5cc;
+
+    font-size:
+      calc(
+        var(--print-photo)
+        *
+        var(--print-fit-factor)
+        *
+        .22
+      );
+
+  }
+
+
+  .participant-name {
+
+    margin-top:
+      calc(4px * var(--print-fit-factor));
+
+    padding:
+      0
+      calc(2px * var(--print-fit-factor));
+
+    font-size:
+      calc(var(--print-name) * var(--print-fit-factor));
+
+    line-height:
+      1.05;
+
+  }
+
+
+  .empty-slot {
+
+    min-height:
+      36px;
+
+    padding:
+      10px;
+
+    font-size:
+      11px;
+
+  }
+
+}

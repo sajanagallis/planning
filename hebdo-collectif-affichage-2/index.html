@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="fr">
+
+<head>
+
+  <meta charset="utf-8">
+
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1"
+  >
+
+  <title>
+    Planning collectif - SAJ Anagallis
+  </title>
+
+  <link
+    rel="stylesheet"
+    href="style.css"
+  >
+
+  <script
+    src="https://docs.getgrist.com/grist-plugin-api.js"
+  ></script>
+
+</head>
+
+
+<body>
+
+
+  <!-- =====================================================
+       BARRE SUPÉRIEURE
+       ===================================================== -->
+
+  <header class="toolbar no-print">
+
+    <div class="brand">
+
+      <div class="brand-mark">
+        SAJ
+      </div>
+
+
+      <div>
+
+        <h1>
+          Planning collectif
+        </h1>
+
+        <p>
+          SAJ Anagallis
+        </p>
+
+      </div>
+
+    </div>
+
+
+    <button
+      id="printBtn"
+      type="button"
+    >
+      Imprimer / PDF
+    </button>
+
+  </header>
+
+
+
+  <!-- =====================================================
+       APPLICATION
+       ===================================================== -->
+
+  <main id="app">
+
+
+    <section
+      id="status"
+      class="status"
+    >
+
+      Connexion à Grist…
+
+    </section>
+
+
+
+    <!-- ===================================================
+         LES 5 PAGES SONT CRÉÉES ICI
+         =================================================== -->
+
+    <section
+      id="pages"
+      class="pages hidden"
+    ></section>
+
+
+  </main>
+
+
+
+  <!-- =====================================================
+       ERREURS
+       ===================================================== -->
+
+  <dialog id="errorDialog">
+
+    <h3>
+      Impossible de charger le planning
+    </h3>
+
+    <pre id="errorText"></pre>
+
+    <button
+      type="button"
+      onclick="this.closest('dialog').close()"
+    >
+      Fermer
+    </button>
+
+  </dialog>
+
+
+
+  <script src="script.js"></script>
+
+
+</body>
+
+</html>
