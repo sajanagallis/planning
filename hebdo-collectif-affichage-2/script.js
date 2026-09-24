@@ -311,6 +311,109 @@ function text(
 }
 
 
+
+/* ============================================================
+   CHAMPS SOUPLES / ACTIVITÉ OUVERTE
+   ============================================================ */
+
+function normalizeFieldName(value) {
+
+  return text(value)
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '');
+
+}
+
+
+function fieldValue(row, candidates) {
+
+  if (!row) {
+    return undefined;
+  }
+
+  const wanted =
+    new Set(
+      candidates.map(normalizeFieldName)
+    );
+
+  for (const [key, value] of Object.entries(row)) {
+
+    if (wanted.has(normalizeFieldName(key))) {
+      return value;
+    }
+
+  }
+
+  return undefined;
+
+}
+
+
+function truthy(value) {
+
+  if (value === true) {
+    return true;
+  }
+
+  if (value === false || value === null || value === undefined || value === '') {
+    return false;
+  }
+
+  if (typeof value === 'number') {
+    return value !== 0;
+  }
+
+  const normalized =
+    text(value)
+      .trim()
+      .toLowerCase();
+
+  return [
+    '1',
+    'true',
+    'oui',
+    'yes',
+    'x',
+    'ouvert',
+    'ouverte'
+  ].includes(normalized);
+
+}
+
+
+function isActivityOpen(row) {
+
+  return truthy(
+    fieldValue(
+      row,
+      [
+        'Groupe ouvert',
+        'Groupe_ouvert',
+        'GroupeOuvert',
+        'Ouvert',
+        'Ouverte',
+        'Activité ouverte',
+        'Activite ouverte'
+      ]
+    )
+  );
+
+}
+
+
+function canShareRow(activity) {
+
+  const count =
+    activity?.participants
+      ? activity.participants.size
+      : 0;
+
+  return Boolean(activity?.isOpen) || count <= 9;
+
+}
+
 /* ============================================================
    ÉCHAPPEMENT HTML
    ============================================================ */
@@ -971,6 +1074,9 @@ animators:
             visual:
               activity.Visuel,
 
+            isOpen:
+              isActivityOpen(activity),
+
             participants:
 
               participantsByActivity
@@ -1036,7 +1142,7 @@ function sortActivities(
 
   /*
    * À heure identique, on regroupe d'abord les activités
-   * qui peuvent s'afficher en demi-largeur.
+   * qui peuvent s'afficher en demi-largeur (0 à 9 participants, ou activité ouverte).
    * Elles se suivent donc dans la grille et se placent
    * naturellement deux par deux sur la même ligne.
    */
@@ -1053,11 +1159,11 @@ function sortActivities(
 
 
   const aHalfWidth =
-    aParticipantCount <= 3;
+    canShareRow(a);
 
 
   const bHalfWidth =
-    bParticipantCount <= 3;
+    canShareRow(b);
 
 
   if (
@@ -1272,7 +1378,7 @@ async function participantHtml(
 
 
 /* ============================================================
-   CARTE ACTIVITÉ
+   CARTE ACTIVITÉ — GABARIT A3
    ============================================================ */
 
 async function activityCard(
@@ -1290,22 +1396,15 @@ async function activityCard(
       activity.start,
       activity.end
     ]
-
-    .filter(Boolean)
-
-    .join(
-      ' – '
-    );
+      .filter(Boolean)
+      .join(' – ');
 
 
   const participantIds =
     [...activity.participants];
 
 
-  /*
-   * Tri alphabétique des personnes.
-   */
-
+  /* Tri alphabétique par nom puis prénom. */
   participantIds.sort(
 
     (
@@ -1314,66 +1413,37 @@ async function activityCard(
     ) => {
 
       const first =
-        state.usersById
-          .get(
-            Number(firstId)
-          );
-
+        state.usersById.get(
+          Number(firstId)
+        );
 
       const second =
-        state.usersById
-          .get(
-            Number(secondId)
-          );
-
+        state.usersById.get(
+          Number(secondId)
+        );
 
       const firstLastName =
-        text(
-          first?.Nom
-        );
-
+        text(first?.Nom);
 
       const secondLastName =
-        text(
-          second?.Nom
-        );
-
+        text(second?.Nom);
 
       const lastNameComparison =
-        firstLastName
-          .localeCompare(
+        firstLastName.localeCompare(
+          secondLastName,
+          'fr',
+          { sensitivity: 'base' }
+        );
 
-            secondLastName,
-
-            'fr',
-
-            {
-              sensitivity: 'base'
-            }
-
-          );
-
-
-      if (
-        lastNameComparison !== 0
-      ) {
-
+      if (lastNameComparison !== 0) {
         return lastNameComparison;
-
       }
-
 
       return userFirstName(first)
         .localeCompare(
-
           userFirstName(second),
-
           'fr',
-
-          {
-            sensitivity: 'base'
-          }
-
+          { sensitivity: 'base' }
         );
 
     }
@@ -1381,23 +1451,33 @@ async function activityCard(
   );
 
 
-  /* ========================================================
-     LARGEUR DE LA TUILE
-     Une activité de 1 à 3 participants peut occuper une demi-largeur.
-     Deux activités compactes consécutives peuvent donc partager une ligne.
-     ======================================================== */
+  const participantCount =
+    participantIds.length;
 
+
+  /*
+   * RÈGLE DE LARGEUR DEMANDÉE :
+   * - 0 à 9 participants : demi-largeur ;
+   * - activité ouverte : demi-largeur quelle que soit sa liste actuelle ;
+   * - plus de 9 participants, si elle n'est pas ouverte : pleine largeur.
+   */
   const useHalfWidth =
-    participantIds.length <= 3;
+    canShareRow(activity);
+
+
+  const sizeClass =
+    participantCount <= 6
+      ? 'activity-card--1-6'
+      : participantCount <= 9
+        ? 'activity-card--7-9'
+        : 'activity-card--10plus';
 
 
   const participantElements =
     await Promise.all(
-
       participantIds.map(
         participantHtml
       )
-
     );
 
 
@@ -1413,299 +1493,187 @@ async function activityCard(
     );
 
 
-  /* ========================================================
-     REMARQUES PLANNING
-     ======================================================== */
-
   const remarksHtml =
-
     activity.remarks
-
-      ?
-
+      ? `
+        <div class="activity-remarks">
+          ${esc(activity.remarks)}
+        </div>
       `
+      : '';
 
-      <div class="activity-remarks">
-        ${esc(activity.remarks)}
-      </div>
-
-      `
-
-      :
-
-      '';
-
-
-  /* ========================================================
-     ANIMATEURS
-     ======================================================== */
 
   const animatorHtml =
-
     activity.animators.length
-
-      ?
-
+      ? `
+        <div class="activity-meta">
+          <strong>Avec :</strong>
+          ${esc(activity.animators.join(', '))}
+        </div>
       `
-
-      <div class="activity-meta">
-
-        <strong>
-          Avec :
-        </strong>
-
-        ${esc(
-          activity.animators
-            .join(', ')
-        )}
-
-      </div>
-
-      `
-
-      :
-
-      '';
-
-
-  /* ========================================================
-     PICTOGRAMME
-     ======================================================== */
-
-  const pictogramHtml =
-
-    pictogramUrl
-
-      ?
-
-      `
-
-      <img
-        class="activity-logo"
-        src="${pictogramUrl}"
-        alt=""
-      >
-
-      `
-
-      :
-
-      '';
-
-
-  /* ========================================================
-     PARTICIPANTS
-     ======================================================== */
-
-  const peopleHtml =
-
-    participantIds.length
-
-      ?
-
-      `
-
-      <div class="participants-title">
-
-        Participant${
-          participantIds.length > 1
-            ? 's'
-            : ''
-        }
-        ·
-        ${participantIds.length}
-
-      </div>
-
-
-      <div class="participants-grid">
-
-        ${participantsHtml}
-
-      </div>
-
-      `
-
-      :
-
-      `
-
-      <div class="participants-title">
-
-        Participants
-
-      </div>
-
-
-      <div class="empty-slot">
-
-        Aucun participant renseigné
-
-      </div>
-
+      : `
+        <div class="activity-meta activity-meta--empty">
+          <strong>Avec :</strong>
+        </div>
       `;
 
 
-  /* ========================================================
-     HTML FINAL
-     ======================================================== */
+  const pictogramHtml =
+    pictogramUrl
+      ? `
+        <img
+          class="activity-logo"
+          src="${pictogramUrl}"
+          alt=""
+        >
+      `
+      : `
+        <div
+          class="activity-logo activity-logo--empty"
+          aria-hidden="true"
+        ></div>
+      `;
+
+
+  const peopleHtml =
+    participantCount
+      ? `
+        <div
+          class="participants-grid"
+          aria-label="${participantCount} participant${participantCount > 1 ? 's' : ''}"
+        >
+          ${participantsHtml}
+        </div>
+      `
+      : `
+        <div class="participants-grid participants-grid--empty">
+          <div class="empty-slot">
+            Aucun participant renseigné
+          </div>
+        </div>
+      `;
+
 
   return `
-
     <article
-
-      class="activity-card${
-        useHalfWidth
-          ? ' activity-card--half'
-          : ''
-      }"
-
-      style="
-        --card-color:
-          ${cardColor};
-      "
-
+      class="activity-card ${useHalfWidth ? 'activity-card--half' : 'activity-card--full'} ${sizeClass}${activity.isOpen ? ' activity-card--open' : ''}"
+      style="--card-color:${cardColor};"
+      data-participants="${participantCount}"
     >
 
+      <div class="activity-layout">
 
-      <div class="activity-header">
+        <div class="activity-pictogram">
+          ${pictogramHtml}
+        </div>
 
+        <div class="activity-main">
 
-        <h3 class="activity-title">
+          <div class="activity-header">
 
-          ${esc(
-            activity.name
-          )}
+            <h3 class="activity-title">
+              ${esc(activity.name)}
+            </h3>
 
-        </h3>
+            ${
+              schedule
+                ? `<div class="activity-time">${esc(schedule)}</div>`
+                : ''
+            }
 
+            ${animatorHtml}
+            ${remarksHtml}
 
-        ${
-          schedule
+          </div>
 
-            ?
+          ${peopleHtml}
 
-            `
-
-            <div class="activity-time">
-
-              ${esc(schedule)}
-
-            </div>
-
-            `
-
-            :
-
-            ''
-        }
-
-
-        ${animatorHtml}
-
-
-        ${remarksHtml}
-
+        </div>
 
       </div>
 
-
-      ${pictogramHtml}
-
-
-      ${peopleHtml}
-
-
     </article>
-
   `;
 
 }
 
 
 /* ============================================================
-   PÉRIODE
+   PAGE A3 D'UNE DEMI-JOURNÉE
    ============================================================ */
 
 async function periodHtml(
   title,
   activities,
   cssClass,
-  dayName
+  day
 ) {
 
   let content;
 
 
-  if (
-    activities.length
-  ) {
+  if (activities.length) {
 
     const cards =
       await Promise.all(
-
         activities.map(
           activityCard
         )
-
       );
-
 
     content =
       cards.join('');
 
   }
 
-
   else {
 
     content = `
-
-      <div class="empty-slot">
-
+      <div class="empty-period">
         Aucune activité renseignée
-
       </div>
-
     `;
 
   }
 
 
   return `
+    <div class="a3-preview">
 
-    <section
-      class="
-        period
-        ${cssClass}
-      "
-      data-day="${esc(dayName)}"
-    >
+      <section
+        class="period ${cssClass}"
+        style="--day-color:${day.color}; --day-background:${day.background};"
+        data-day="${esc(day.name)}"
+        data-period="${esc(title)}"
+      >
 
+        <header class="period-page-header">
+          <div class="period-day">
+            ${esc(day.name)}
+          </div>
+          <div class="period-title">
+            ${esc(title)}
+          </div>
+        </header>
 
-      <div class="period-title">
+        <div class="activities-list">
+          ${content}
+        </div>
 
-        ${esc(title)}
+        <footer class="period-footer">
+          Odynéo · Les Tourrais de Craponne · Service d'accueil de jour Anagallis
+        </footer>
 
-      </div>
+      </section>
 
-
-      <div class="activities-list">
-
-        ${content}
-
-      </div>
-
-
-    </section>
-
+    </div>
   `;
 
 }
 
 
 /* ============================================================
-   PAGE D'UNE JOURNÉE
+   JOUR = 2 PAGES A3 : MATIN + APRÈS-MIDI
    ============================================================ */
 
 async function dayPage(
@@ -1713,132 +1681,51 @@ async function dayPage(
 ) {
 
   const activities =
-
     state.activities
-
       .filter(
-
         activity =>
-          activity.day
-          ===
-          day.name
-
+          activity.day === day.name
       )
-
       .sort(
         sortActivities
       );
 
 
   const morning =
-
     activities.filter(
-
       activity =>
-        periodOf(activity)
-        ===
-        'Matin'
-
+        periodOf(activity) === 'Matin'
     );
 
 
   const afternoon =
-
     activities.filter(
-
       activity =>
-        periodOf(activity)
-        ===
-        'ApresMidi'
-
+        periodOf(activity) === 'ApresMidi'
     );
 
 
   const morningHtml =
     await periodHtml(
-
       'MATIN',
-
       morning,
-
       'period-morning',
-
-      day.name
-
+      day
     );
 
 
   const afternoonHtml =
     await periodHtml(
-
       'APRÈS-MIDI',
-
       afternoon,
-
       'period-afternoon',
-
-      day.name
-
+      day
     );
 
 
   return `
-
-    <article
-
-      class="day-page"
-
-      style="
-        --day-color:
-          ${day.color};
-
-        --day-background:
-          ${day.background};
-      "
-
-    >
-
-
-      <header class="day-title">
-
-        ${esc(
-          day.name
-        )}
-
-      </header>
-
-
-
-      <div class="day-body">
-
-
-        ${morningHtml}
-
-
-        <div class="meal-banner">
-
-          12 h · Repas
-
-        </div>
-
-
-        ${afternoonHtml}
-
-
-      </div>
-
-
-
-      <footer class="page-footer">
-
-        Odynéo · Les Tourrais de Craponne ·
-        Service d'accueil de jour Anagallis
-
-      </footer>
-
-
-    </article>
-
+    ${morningHtml}
+    ${afternoonHtml}
   `;
 
 }
@@ -1853,18 +1740,15 @@ async function render() {
   const pages =
     $('pages');
 
-
   pages.innerHTML =
     '';
 
 
   const generated =
     await Promise.all(
-
       DAYS.map(
         dayPage
       )
-
     );
 
 
@@ -1874,16 +1758,19 @@ async function render() {
 
   $('status')
     .classList
-    .add(
-      'hidden'
-    );
-
+    .add('hidden');
 
   pages
     .classList
-    .remove(
-      'hidden'
-    );
+    .remove('hidden');
+
+
+  requestAnimationFrame(
+    () => {
+      fitScreenPages();
+      checkPageOverflow();
+    }
+  );
 
 }
 
@@ -1967,220 +1854,133 @@ ${Object.values(TABLES).join('\n')}`;
 
 
 /* ============================================================
-   AJUSTEMENT RÉEL POUR TENIR SUR UNE PAGE A3
+   APERÇU ÉCRAN = EXACTEMENT LA PAGE A3
    ============================================================ */
 
-/*
- * Aucun transform/zoom n'est utilisé ici.
- * On réduit réellement les dimensions CSS via --print-fit-factor.
- * Cela évite le défaut de pagination observé dans Firefox
- * sur les pages suivant la première.
- */
-function resetPrintFit() {
+function fitScreenPages() {
+
+  if (window.matchMedia('print').matches) {
+    return;
+  }
+
+  const pages =
+    $('pages');
+
+  if (!pages) {
+    return;
+  }
+
+  const availableWidth =
+    Math.max(
+      260,
+      pages.clientWidth
+    );
+
 
   document
-    .querySelectorAll(
-      '.period'
-    )
+    .querySelectorAll('.a3-preview')
     .forEach(
+      wrapper => {
 
-      period => {
+        const page =
+          wrapper.querySelector('.period');
 
-        period.style.removeProperty(
-          '--print-fit-factor'
-        );
+        if (!page) {
+          return;
+        }
+
+        /* Mesure de la page A3 à sa taille CSS physique réelle. */
+        page.style.transform =
+          'none';
+
+        const naturalWidth =
+          page.offsetWidth;
+
+        const naturalHeight =
+          page.offsetHeight;
+
+        const scale =
+          Math.min(
+            1,
+            availableWidth / naturalWidth
+          );
+
+        wrapper.style.width =
+          `${naturalWidth * scale}px`;
+
+        wrapper.style.height =
+          `${naturalHeight * scale}px`;
+
+        page.style.transform =
+          `scale(${scale})`;
 
       }
-
     );
 
 }
 
 
-function fitPeriodsToA3() {
+function checkPageOverflow() {
 
-  const periods =
-    Array.from(
-      document.querySelectorAll(
-        '.period'
-      )
+  document
+    .querySelectorAll('.period')
+    .forEach(
+      page => {
+
+        const isOverflowing =
+          page.scrollHeight > page.clientHeight + 2;
+
+        page.classList.toggle(
+          'period--overflow',
+          isOverflowing
+        );
+
+      }
     );
-
-
-  periods.forEach(
-
-    period => {
-
-      period.style.setProperty(
-        '--print-fit-factor',
-        '1'
-      );
-
-
-      /*
-       * Force le recalcul après remise à la taille normale.
-       */
-      void period.offsetHeight;
-
-
-      const fitsAt = factor => {
-
-        period.style.setProperty(
-          '--print-fit-factor',
-          String(factor)
-        );
-
-
-        void period.offsetHeight;
-
-
-        /*
-         * scrollHeight reste supérieur à clientHeight si le contenu
-         * dépasse réellement de la page, même avec overflow:hidden.
-         */
-        return period.scrollHeight
-          <=
-          period.clientHeight
-          +
-          2;
-
-      };
-
-
-      if (
-        fitsAt(1)
-      ) {
-
-        return;
-
-      }
-
-
-      /*
-       * Recherche du plus grand facteur qui tient réellement.
-       * On descend seulement autant que nécessaire.
-       */
-      let low =
-        0.42;
-
-      let high =
-        1;
-
-
-      if (
-        !fitsAt(low)
-      ) {
-
-        /*
-         * Cas exceptionnel de demi-journée extrêmement chargée.
-         * La priorité reste : une seule page A3.
-         */
-        let emergency =
-          low;
-
-
-        while (
-          emergency > 0.18
-          &&
-          !fitsAt(emergency)
-        ) {
-
-          emergency -=
-            0.03;
-
-        }
-
-
-        period.style.setProperty(
-          '--print-fit-factor',
-          String(
-            Math.max(
-              0.18,
-              emergency
-            )
-          )
-        );
-
-
-        return;
-
-      }
-
-
-      for (
-        let i = 0;
-        i < 16;
-        i += 1
-      ) {
-
-        const mid =
-          (
-            low
-            +
-            high
-          )
-          /
-          2;
-
-
-        if (
-          fitsAt(mid)
-        ) {
-
-          low =
-            mid;
-
-        }
-
-
-        else {
-
-          high =
-            mid;
-
-        }
-
-      }
-
-
-      /*
-       * Petite marge de sécurité pour l'impression réelle.
-       */
-      period.style.setProperty(
-        '--print-fit-factor',
-        String(
-          low
-          *
-          0.985
-        )
-      );
-
-    }
-
-  );
 
 }
 
 
 window.addEventListener(
+  'resize',
+  fitScreenPages
+);
 
+
+window.addEventListener(
   'beforeprint',
-
   () => {
-
-    resetPrintFit();
-
-    fitPeriodsToA3();
-
+    document
+      .querySelectorAll('.period')
+      .forEach(
+        page => {
+          page.style.transform = 'none';
+        }
+      );
   }
-
 );
 
 
 window.addEventListener(
   'afterprint',
-  resetPrintFit
+  () => {
+    fitScreenPages();
+  }
 );
+
+
+if ('ResizeObserver' in window) {
+
+  const previewResizeObserver =
+    new ResizeObserver(
+      () => fitScreenPages()
+    );
+
+  previewResizeObserver.observe(
+    document.documentElement
+  );
+
+}
 
 
 /* ============================================================
