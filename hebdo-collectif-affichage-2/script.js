@@ -410,7 +410,22 @@ function canShareRow(activity) {
       ? activity.participants.size
       : 0;
 
-  return Boolean(activity?.isOpen) || count <= 9;
+  /*
+   * PRIORITÉ AU GABARIT > 9 DU CROQUIS :
+   * dès qu'une activité compte plus de 9 participants, elle passe
+   * obligatoirement en pleine largeur, même si « Groupe ouvert » est coché.
+   * Ainsi le visuel spécifique > 9 n'est jamais remplacé par une demi-tuile.
+   */
+  if (count > 9) {
+    return false;
+  }
+
+  /*
+   * De 0 à 9 participants, la tuile peut partager sa ligne.
+   * Une activité ouverte sans liste nominative reste donc naturellement
+   * compatible avec l'affichage deux activités côte à côte.
+   */
+  return count <= 9 || Boolean(activity?.isOpen);
 
 }
 
@@ -1142,7 +1157,8 @@ function sortActivities(
 
   /*
    * À heure identique, on regroupe d'abord les activités
-   * qui peuvent s'afficher en demi-largeur (0 à 9 participants, ou activité ouverte).
+   * qui peuvent s'afficher en demi-largeur (0 à 9 participants).
+   * Au-delà de 9, le gabarit spécifique du croquis est prioritaire.
    * Elles se suivent donc dans la grille et se placent
    * naturellement deux par deux sur la même ligne.
    */
@@ -1458,8 +1474,9 @@ async function activityCard(
   /*
    * RÈGLE DE LARGEUR DEMANDÉE :
    * - 0 à 9 participants : demi-largeur ;
-   * - activité ouverte : demi-largeur quelle que soit sa liste actuelle ;
-   * - plus de 9 participants, si elle n'est pas ouverte : pleine largeur.
+   * - activité ouverte sans dépassement de 9 personnes : demi-largeur ;
+   * - plus de 9 participants : TOUJOURS pleine largeur afin d'appliquer
+   *   le gabarit spécifique du croquis (> 9 personnes).
    */
   const useHalfWidth =
     canShareRow(activity);

@@ -342,18 +342,34 @@ body {
 }
 
 /*
- * Plus de 9 : tuile pleine largeur.
- * Le pictogramme reste à gauche.
- * La zone texte reste limitée à la largeur de 3 photos.
- * En dessous, les photos occupent 9 colonnes par rangée.
+ * PLUS DE 9 — GABARIT SPÉCIFIQUE DU CROQUIS :
+ *
+ * [ PICTO 6 x 6 cm ] [ ZONE TEXTE = largeur de 3 photos ]
+ *                     [ 1 ][ 2 ][ 3 ][ 4 ][ 5 ][ 6 ][ 7 ][ 8 ][ 9 ]
+ *                     [10 ][11 ][12 ][13 ][14 ][15 ][16 ][17 ][18 ]
+ *                     [19 ][20 ][21 ] ...
+ *
+ * La tuile occupe obligatoirement toute la largeur.
+ * Le pictogramme reste à gauche. Toutes les photos restent à droite
+ * du pictogramme, en 9 colonnes fixes de 2 cm, exactement comme le dessin.
  */
-.activity-card--10plus.activity-card--full .participants-grid {
-  grid-template-columns: repeat(9, var(--participant-photo));
+.activity-card--10plus {
+  grid-column: 1 / -1 !important;
 }
 
-/* Activité ouverte : toujours en demi-largeur, même si >9 inscrits. */
-.activity-card--10plus.activity-card--half .participants-grid {
-  grid-template-columns: repeat(3, var(--participant-photo));
+.activity-card--10plus .activity-main {
+  min-width: 204mm;
+}
+
+.activity-card--10plus .activity-header {
+  width: var(--right-block-width);
+  max-width: var(--right-block-width);
+}
+
+.activity-card--10plus .participants-grid {
+  width: 204mm;
+  max-width: none;
+  grid-template-columns: repeat(9, var(--participant-photo));
 }
 
 .participant {
