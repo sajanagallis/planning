@@ -142,7 +142,8 @@ body {
   display: flex;
   flex-direction: column;
   padding: var(--page-padding);
-  background: var(--paper);
+  /* Fond de page = teinte pâle mais visible du jour */
+  background: var(--day-background);
   box-shadow: 0 8px 30px rgba(23, 48, 66, .14);
 }
 
@@ -218,7 +219,8 @@ body {
   min-width: 0;
   width: auto;
   padding: 2.5mm;
-  background: rgba(255, 255, 255, .98);
+  /* Les tuiles restent entièrement blanches */
+  background: #ffffff;
   border: .55mm solid var(--card-color);
   border-left-width: 1.4mm;
   border-radius: 2.5mm;
@@ -485,38 +487,66 @@ dialog pre {
    IMPRESSION / PDF = MÊME A3 QUE L'ÉCRAN
    ========================================================== */
 
+/* ==========================================================
+   IMPRESSION / PDF
+
+   Zone de sécurité de 5 mm tout autour de la feuille A3.
+   Elle évite que le nom du jour et MATIN / APRÈS-MIDI soient
+   rognés par les marges non imprimables des imprimantes.
+
+   Le PDF utilise exactement les mêmes règles @media print.
+   ========================================================== */
+
 @page {
   size: A3 portrait;
-  margin: 0;
+  margin: 5mm;
 }
 
 @media print {
+  :root {
+    --print-page-width: 287mm;  /* 297 - 2 x 5 mm */
+    --print-page-height: 410mm; /* 420 - 2 x 5 mm */
+    --print-inner-padding: 5mm;
+  }
+
   html,
   body {
-    margin: 0;
-    padding: 0;
-    background: white;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: white !important;
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
   }
 
   .no-print,
-  .status { display: none !important; }
+  .status {
+    display: none !important;
+  }
 
-  #app { padding: 0; overflow: visible; }
+  #app {
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+  }
 
   .pages {
     display: block !important;
-    width: auto;
+    width: var(--print-page-width) !important;
+    margin: 0 !important;
+    padding: 0 !important;
   }
 
   .a3-preview {
     position: relative !important;
-    width: var(--a3-width) !important;
-    height: var(--a3-height) !important;
+    width: var(--print-page-width) !important;
+    height: var(--print-page-height) !important;
     margin: 0 !important;
+    padding: 0 !important;
+    overflow: hidden !important;
     break-after: page;
     page-break-after: always;
+    break-inside: avoid;
+    page-break-inside: avoid;
   }
 
   .a3-preview:last-child {
@@ -527,15 +557,58 @@ dialog pre {
   .period {
     position: absolute !important;
     inset: 0 auto auto 0 !important;
-    width: var(--a3-width) !important;
-    height: var(--a3-height) !important;
-    min-width: var(--a3-width) !important;
-    min-height: var(--a3-height) !important;
-    max-width: var(--a3-width) !important;
-    max-height: var(--a3-height) !important;
+    width: var(--print-page-width) !important;
+    height: var(--print-page-height) !important;
+    min-width: var(--print-page-width) !important;
+    min-height: var(--print-page-height) !important;
+    max-width: var(--print-page-width) !important;
+    max-height: var(--print-page-height) !important;
+    padding: var(--print-inner-padding) !important;
     transform: none !important;
+    overflow: hidden !important;
     box-shadow: none !important;
+    background: var(--day-background) !important;
   }
 
-  .period--overflow::after { display: none !important; }
+  /*
+   * IMPORTANT : à l'écran le bandeau déborde volontairement jusqu'au bord
+   * de la feuille grâce aux marges négatives. À l'impression on annule ce
+   * débordement : le bandeau reste entièrement dans la zone imprimable.
+   */
+  .period-page-header {
+    width: 100% !important;
+    min-height: 17mm !important;
+    margin: 0 0 5mm 0 !important;
+    padding: 3mm 4mm !important;
+    border-radius: 1.5mm !important;
+    overflow: visible !important;
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+
+  .period-day {
+    min-width: 0;
+    padding: 1mm 0 !important;
+    font-size: 21pt !important;
+    line-height: 1.15 !important;
+    white-space: nowrap !important;
+    overflow: visible !important;
+  }
+
+  .period-title {
+    flex: 0 0 auto;
+    padding: 2mm 3.5mm !important;
+    font-size: 12.5pt !important;
+    line-height: 1.15 !important;
+    white-space: nowrap !important;
+    overflow: visible !important;
+  }
+
+  .activity-card {
+    background: #ffffff !important;
+  }
+
+  .period--overflow::after {
+    display: none !important;
+  }
 }

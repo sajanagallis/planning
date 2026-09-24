@@ -50,7 +50,7 @@ const DAYS = [
       '#1598e2',
 
     background:
-      'rgba(21,152,226,.10)'
+      'rgba(21,152,226,.18)'
 
   },
 
@@ -64,7 +64,7 @@ const DAYS = [
       '#2bb447',
 
     background:
-      'rgba(43,180,71,.10)'
+      'rgba(43,180,71,.18)'
 
   },
 
@@ -78,7 +78,7 @@ const DAYS = [
       '#c15bdf',
 
     background:
-      'rgba(193,91,223,.10)'
+      'rgba(193,91,223,.18)'
 
   },
 
@@ -92,7 +92,7 @@ const DAYS = [
       '#eda820',
 
     background:
-      'rgba(237,168,32,.10)'
+      'rgba(237,168,32,.18)'
 
   },
 
@@ -106,7 +106,7 @@ const DAYS = [
       '#d65357',
 
     background:
-      'rgba(214,83,87,.10)'
+      'rgba(214,83,87,.18)'
 
   }
 
