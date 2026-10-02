@@ -305,10 +305,11 @@ body {
 .activity-meta,
 .activity-remarks {
   margin-top: .8mm;
-  color: #4e626e;
+  color: #000;
   font-size: 9pt;
   line-height: 1.12;
   overflow-wrap: break-word;
+  font-variant-caps: small-caps;
 }
 
 .activity-meta strong { color: var(--ink); }
