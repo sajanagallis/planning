@@ -23,7 +23,7 @@
   --photo-gap-y: 2.5mm;
 
   /* 3 photos de 2 cm + 2 espaces de 3 mm = 66 mm */
-  --right-block-width: 66mm;
+  --right-block-width: 180mm;
 }
 
 * { box-sizing: border-box; }
