@@ -518,10 +518,6 @@ async function attachmentUrl(value) {
 
   try {
 
-    /*
-     * Renouvellement automatique du token Grist.
-     * On garde une marge de sécurité de 30 secondes.
-     */
     const now = Date.now();
 
     if (
@@ -541,21 +537,13 @@ async function attachmentUrl(value) {
       attachmentTokenExpiresAt =
         now + ttl;
 
-      /*
-       * Les anciennes URL utilisent l'ancien token.
-       */
       state.attachmentUrls.clear();
     }
 
-    if (
-      state.attachmentUrls.has(id)
-    ) {
+    if (state.attachmentUrls.has(id)) {
       return state.attachmentUrls.get(id);
     }
 
-    /*
-     * Évite aussi un éventuel // dans l'URL.
-     */
     const baseUrl =
       String(attachmentTokenInfo.baseUrl)
         .replace(/\/+$/, '');
@@ -566,10 +554,7 @@ async function attachmentUrl(value) {
         attachmentTokenInfo.token
       )}`;
 
-    state.attachmentUrls.set(
-      id,
-      url
-    );
+    state.attachmentUrls.set(id, url);
 
     return url;
 
@@ -586,103 +571,6 @@ async function attachmentUrl(value) {
 
     return '';
   }
-}
-
-  const ids =
-    refIds(value);
-
-
-  if (
-    !ids.length
-  ) {
-
-    return '';
-
-  }
-
-
-  const id =
-    ids[0];
-
-
-  if (
-    state
-      .attachmentUrls
-      .has(id)
-  ) {
-
-    return state
-      .attachmentUrls
-      .get(id);
-
-  }
-
-
-  try {
-
-    if (
-      !attachmentTokenInfo
-    ) {
-
-      attachmentTokenInfo =
-        await grist.docApi
-          .getAccessToken({
-
-            readOnly:
-              true
-
-          });
-
-    }
-
-
-    const url =
-
-      `${attachmentTokenInfo.baseUrl}`
-
-      +
-
-      `/attachments/${id}/download`
-
-      +
-
-      `?auth=${encodeURIComponent(
-        attachmentTokenInfo.token
-      )}`;
-
-
-    state
-      .attachmentUrls
-      .set(
-        id,
-        url
-      );
-
-
-    return url;
-
-  }
-
-
-  catch (
-    error
-  ) {
-
-    console.error(
-
-      'Impossible de charger la pièce jointe',
-
-      id,
-
-      error
-
-    );
-
-
-    return '';
-
-  }
-
 }
 
 
