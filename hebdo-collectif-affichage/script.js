@@ -135,6 +135,7 @@ const state = {
 let attachmentTokenInfo =
   null;
 
+let attachmentTokenExpiresAt = 0;
 
 const $ =
   id =>
@@ -202,62 +203,80 @@ function rowsFromTable(table) {
 function refIds(value) {
 
   if (
-    value === null
-    ||
-    value === undefined
-    ||
+    value === null ||
+    value === undefined ||
     value === ''
   ) {
-
     return [];
-
   }
 
-
+  // Référence simple
   if (
-    Array.isArray(value)
+    typeof value === 'number' ||
+    (
+      typeof value === 'string' &&
+      value.trim() !== '' &&
+      Number.isFinite(Number(value))
+    )
   ) {
-
-    const values =
-
-      value[0] === 'L'
-
-        ?
-
-        value.slice(1)
-
-        :
-
-        value;
-
-
-    return values
-
-      .flat()
-
-      .map(Number)
-
-      .filter(
-        Number.isFinite
-      );
-
+    return [Number(value)];
   }
 
+  if (Array.isArray(value)) {
 
-  const number =
-    Number(value);
+    /*
+     * Ancien format Grist :
+     * ["L", 12, 15]
+     */
+    if (value[0] === 'L') {
 
+      return value
+        .slice(1)
+        .flat(Infinity)
+        .map(Number)
+        .filter(Number.isFinite);
+    }
 
-  return Number.isFinite(number)
+    /*
+     * Nouveau format Ref :
+     * ["R", "Table", 12]
+     */
+    if (value[0] === 'R') {
 
-    ?
+      const id = Number(value[2]);
 
-    [number]
+      return Number.isFinite(id)
+        ? [id]
+        : [];
+    }
 
-    :
+    /*
+     * Nouveau format RefList / Attachments :
+     * ["r", "_grist_Attachments", [12, 15]]
+     */
+    if (value[0] === 'r') {
 
-    [];
+      const ids = value[2];
 
+      if (!Array.isArray(ids)) {
+        return [];
+      }
+
+      return ids
+        .map(Number)
+        .filter(Number.isFinite);
+    }
+
+    /*
+     * Sécurité pour d'autres formats éventuels.
+     */
+    return value
+      .flat(Infinity)
+      .map(Number)
+      .filter(Number.isFinite);
+  }
+
+  return [];
 }
 
 
@@ -487,9 +506,87 @@ function colorFor(name) {
    URL DES IMAGES GRIST
    ============================================================ */
 
-async function attachmentUrl(
-  value
-) {
+async function attachmentUrl(value) {
+
+  const ids = refIds(value);
+
+  if (!ids.length) {
+    return '';
+  }
+
+  const id = ids[0];
+
+  try {
+
+    /*
+     * Renouvellement automatique du token Grist.
+     * On garde une marge de sécurité de 30 secondes.
+     */
+    const now = Date.now();
+
+    if (
+      !attachmentTokenInfo ||
+      now >= attachmentTokenExpiresAt - 30000
+    ) {
+
+      attachmentTokenInfo =
+        await grist.docApi.getAccessToken({
+          readOnly: true
+        });
+
+      const ttl =
+        Number(attachmentTokenInfo.ttlMsecs) ||
+        60000;
+
+      attachmentTokenExpiresAt =
+        now + ttl;
+
+      /*
+       * Les anciennes URL utilisent l'ancien token.
+       */
+      state.attachmentUrls.clear();
+    }
+
+    if (
+      state.attachmentUrls.has(id)
+    ) {
+      return state.attachmentUrls.get(id);
+    }
+
+    /*
+     * Évite aussi un éventuel // dans l'URL.
+     */
+    const baseUrl =
+      String(attachmentTokenInfo.baseUrl)
+        .replace(/\/+$/, '');
+
+    const url =
+      `${baseUrl}/attachments/${id}/download` +
+      `?auth=${encodeURIComponent(
+        attachmentTokenInfo.token
+      )}`;
+
+    state.attachmentUrls.set(
+      id,
+      url
+    );
+
+    return url;
+
+  } catch (error) {
+
+    console.error(
+      'Impossible de charger la pièce jointe Grist',
+      {
+        id,
+        value,
+        error
+      }
+    );
+
+    return '';
+  }
+}
 
   const ids =
     refIds(value);
@@ -600,9 +697,8 @@ async function fetchAll() {
   );
 
 
-  attachmentTokenInfo =
-    null;
-
+  attachmentTokenInfo = null;
+  attachmentTokenExpiresAt = 0;
 
   state
     .attachmentUrls
