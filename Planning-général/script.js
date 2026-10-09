@@ -1,5 +1,5 @@
 /*
- * Planning général SAJ Anagallis V6 — lecture seule, données Grist.
+ * Planning général SAJ Anagallis V7 — lecture seule, données Grist.
  * Une grande case « Activités » par usager et demi-journée ; les deux
  * premières activités inscrites, ou proposées en groupe ouvert si la demi-journée
  * est libre, y sont listées. Autre colonne : Kiné/Ortho.
@@ -101,37 +101,89 @@
   const isReference=s=>/\btemps (?:de )?(?:reference|referent|ref)\b/.test(norm(s)); // ignorés dans cette version
   const isRehab=s=>/\bkine\b|\bkinesitherap|\bortho\b|orthophon/.test(norm(s));
   const noStaff=s=>norm(s)==='accueil'; // Nul Bar ailleurs : afficher les salariés comme toutes les activités.
-  // Le statut est utilisé UNIQUEMENT pour la forme du nom du professionnel :
-  // salarié SAJ/LTC = prénom ; intervenant/bénévole = prénom + nom.
-  // Il ne détermine jamais la couleur ou la catégorie de l'activité.
+  // Le statut est utilisé uniquement pour la FORME du nom, jamais pour la couleur.
+  // Choices réelles de Grist : « Salarié⋅e SAJ », « Salarié⋅e LTC »,
+  // « Salarié⋅e Odynéo », « Intervenant⋅e », « Bénévole ».
   function shortStaffName(p){
     const status=norm(p?.Status);
-    const first=text(p?.Prenom),last=text(p?.Nom);
-    if(/\b(saj|ltc)\b/.test(status))return first||text(p?.Nom2)||last;
-    if(/\b(intervenant|benevole)\b/.test(status))return [first,last].filter(Boolean).join(' ')||text(p?.Nom2);
-    return [first,last].filter(Boolean).join(' ')||text(p?.Nom2);
+    const first=text(p?.Prenom),last=text(p?.Nom),complete=text(p?.Nom2);
+    if(/\b(saj|ltc)\b/.test(status))return first||complete||last;
+    if(/\b(intervenant|benevole)\b/.test(status))return [first,last].filter(Boolean).join(' ')||complete;
+    // Autre statut (ex. salarié Odynéo) : ne pas présumer un statut SAJ/LTC.
+    return [first,last].filter(Boolean).join(' ')||complete;
   }
   function fullName(p){return [text(p?.Prenom),text(p?.Nom)].filter(Boolean).join(' ')||text(p?.Nom2);}
+  function staffVariants(p){
+    const first=text(p?.Prenom),last=text(p?.Nom);
+    return unique([fullName(p),text(p?.Nom2),[last,first].filter(Boolean).join(' ')]).map(norm).filter(Boolean);
+  }
+  // Index des professionnels à partir de la table Animateurs.
+  // Une même personne peut apparaître sous « Prénom NOM », « NOM Prénom »,
+  // ou dans une RefList affichée comme une suite de noms.
+  function staffDirectory(rows){
+    const byName=new Map();
+    for(const p of rows){
+      for(const key of staffVariants(p)){
+        const list=byName.get(key)||[];
+        if(!list.some(other=>other.id===p.id))list.push(p);
+        byName.set(key,list);
+      }
+    }
+    return byName;
+  }
+  function matchDisplayedStaff(written,byName){
+    const label=norm(written);
+    if(!label)return [];
+    const exact=byName.get(label);
+    if(exact?.length===1)return exact;
+    // Une formule de Grist peut retourner plusieurs noms dans une même chaîne.
+    // Faire correspondre chaque NOM COMPLET à la table Animateurs, puis
+    // convertir une seule fois le nom selon Status.
+    let remaining=` ${label} `;
+    const selected=[];
+    for(const [key,people] of [...byName.entries()].sort((a,b)=>b[0].length-a[0].length)){
+      if(key.length<5||people.length!==1)continue;
+      const token=` ${key} `;
+      if(remaining.includes(token)){
+        const person=people[0];
+        if(!selected.some(p=>p.id===person.id))selected.push(person);
+        remaining=remaining.replace(token,' ');
+      }
+    }
+    return selected;
+  }
   function staffFor(a,staffByName,notes){
     const idList=refs(a.Animateur_s);
-    const found=idList.map(id=>state.byId.animators.get(id)).filter(Boolean);
-    const displayed=names(a.gristHelper_Display).concat(names(a.Animateur_s2));
-    for(const written of displayed){
-      const entry=staffByName.get(norm(written));
-      if(entry&&!found.some(x=>x.id===entry.id))found.push(entry);
+    const found=[];
+    for(const id of idList){
+      const p=state.byId.animators.get(id);
+      if(p&&!found.some(x=>x.id===p.id))found.push(p);
+      else if(!p)notes.push(`Référence animateur introuvable pour : ${text(a.Nom_activite)} (ID ${id}).`);
     }
-    const idMissing=idList.filter(id=>!state.byId.animators.has(id));
-    const formatted=unique(found.map(shortStaffName));
-    // Fallback si le champ d'affichage Grist contient un nom sans référence retrouvée.
-    // Éviter de perdre un nom ; sans statut identifiable, le montrer en entier.
+    const displayed=unique(names(a.gristHelper_Display).concat(names(a.Animateur_s2)));
+    const unresolved=[];
     for(const written of displayed){
-      const already=found.some(p=>norm(fullName(p))===norm(written)||norm(text(p.Nom2))===norm(written));
-      if(!already)formatted.push(written);
+      const matches=matchDisplayedStaff(written,staffByName);
+      if(matches.length){
+        for(const p of matches)if(!found.some(x=>x.id===p.id))found.push(p);
+        // Ne JAMAIS ajouter le libellé complet en plus du prénom formaté :
+        // c'était la cause des noms « Nadège THIVEL » en V6.
+        continue;
+      }
+      // Si les références ont permis de retrouver le ou les professionnels,
+      // la colonne d'affichage ne doit pas rajouter une variante de leur nom.
+      if(found.length)continue;
+      unresolved.push(written);
     }
-    if(!formatted.length&&!noStaff(a.Nom_activite)&&!isFree(a.Nom_activite)&&!isReference(a.Nom_activite))
+    if(!found.length && unresolved.length){
+      notes.push(`Statut du professionnel non vérifiable pour « ${text(a.Nom_activite)} » : ${unresolved.join(' / ')}. Vérifier la référence Animateur_s.`);
+      // Sans statut confirmé, ne pas prétendre que le professionnel est salarié SAJ.
+      // Le nom d'affichage de Grist est conservé et signalé à vérifier.
+      return unresolved.join(' · ');
+    }
+    if(!found.length&&!noStaff(a.Nom_activite)&&!isFree(a.Nom_activite)&&!isReference(a.Nom_activite))
       notes.push(`Professionnel non retrouvé : ${text(a.Nom_activite)} (vérifier Activites.Animateur_s).`);
-    if(idMissing.length)notes.push(`Référence animateur introuvable pour : ${text(a.Nom_activite)}.`);
-    return unique(formatted).join(' · ');
+    return unique(found.map(shortStaffName)).join(' · ');
   }
   function sortedYears(){return [...(state.raw.years||[])].sort((a,b)=>Number(b.Debut||0)-Number(a.Debut||0)||text(b.Annee).localeCompare(text(a.Annee),'fr',{numeric:true}));}
   function fillYears(){
@@ -206,8 +258,7 @@
       if(isCurrent&&presenceByUser.size&&!presenceByUser.has(person.id))notes.push(`Présences_annuelles : ligne manquante pour ${person.name} (valeurs Usagers utilisées).`);
     }
     if(!people.length)errors.push('Aucun usager pour cette année.');
-    const animatorByName=new Map();
-    for(const s of state.raw.animators){for(const label of [fullName(s),`${text(s.Nom)} ${text(s.Prenom)}`])if(label)animatorByName.set(norm(label),s);}
+    const animatorByName=staffDirectory(state.raw.animators);
     const cells=new Map();
     const openActivities=[];
     function bucket(userId,day,half){const key=`${userId}|${day}|${half}`;if(!cells.has(key))cells.set(key,{activities:[],rehab:[]});return cells.get(key);}
