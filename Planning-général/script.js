@@ -1,7 +1,8 @@
 /*
- * Planning général SAJ Anagallis V4 — lecture seule, données Grist.
- * Une grande case « Activités » par usager et demi-journée ; toutes les
- * activités INSCRITES y sont listées. Deux autres cases : Kiné/Ortho, Référence.
+ * Planning général SAJ Anagallis V6 — lecture seule, données Grist.
+ * Une grande case « Activités » par usager et demi-journée ; les deux
+ * premières activités inscrites, ou proposées en groupe ouvert si la demi-journée
+ * est libre, y sont listées. Autre colonne : Kiné/Ortho.
  * Aucun « X », aucune participation déduite, aucun horaire d'activité imprimé.
  * Export A3/A4 via fenêtre d'impression native (PDF local, sans service tiers).
  * Schéma fondé sur l'export .grist « Planning d'activités - SAJ Anagallis ».
@@ -97,37 +98,40 @@
     return /^(#[0-9a-f]{3,8}|rgb\(\s*\d{1,3}\s*,\s*\d{1,3}\s*,\s*\d{1,3}\s*\))$/i.test(c)?c:day.color;
   }
   const isFree=s=>/\btemps libres?\b|\btemps perso(?:nnel)?\b|^libre$/.test(norm(s));
-  const isReference=s=>/\btemps (?:de )?(?:reference|referent|ref)\b/.test(norm(s));
+  const isReference=s=>/\btemps (?:de )?(?:reference|referent|ref)\b/.test(norm(s)); // ignorés dans cette version
   const isRehab=s=>/\bkine\b|\bkinesitherap|\bortho\b|orthophon/.test(norm(s));
-  const noStaff=s=>['accueil','nul bar ailleurs','nulle part ailleurs'].includes(norm(s));
-  function statusKind(s){
-    const v=norm(s);
-    if(/\bsaj\b/.test(v))return 'saj';
-    if(/\bltc\b|\bintervenant\b|\bodyneo\b|\bbenevole\b/.test(v))return 'external';
-    return 'unknown';
+  const noStaff=s=>norm(s)==='accueil'; // Nul Bar ailleurs : afficher les salariés comme toutes les activités.
+  // Le statut est utilisé UNIQUEMENT pour la forme du nom du professionnel :
+  // salarié SAJ/LTC = prénom ; intervenant/bénévole = prénom + nom.
+  // Il ne détermine jamais la couleur ou la catégorie de l'activité.
+  function shortStaffName(p){
+    const status=norm(p?.Status);
+    const first=text(p?.Prenom),last=text(p?.Nom);
+    if(/\b(saj|ltc)\b/.test(status))return first||text(p?.Nom2)||last;
+    if(/\b(intervenant|benevole)\b/.test(status))return [first,last].filter(Boolean).join(' ')||text(p?.Nom2);
+    return [first,last].filter(Boolean).join(' ')||text(p?.Nom2);
   }
-  function fullName(p){return text(p?.Nom2)||[text(p?.Prenom),text(p?.Nom)].filter(Boolean).join(' ');}
+  function fullName(p){return [text(p?.Prenom),text(p?.Nom)].filter(Boolean).join(' ')||text(p?.Nom2);}
   function staffFor(a,staffByName,notes){
-    const refIds=refs(a.Animateur_s);
-    const fromIds=refIds.map(id=>state.byId.animators.get(id)).filter(Boolean);
-    const knownNames=names(a.gristHelper_Display).concat(names(a.Animateur_s2));
-    const resolved=fromIds.length?fromIds:[];
-    for(const written of knownNames){
-      // Nom affiché par Grist : essayer de le rapprocher d'un vrai animateur
-      // pour retrouver son statut sans l'inventer.
+    const idList=refs(a.Animateur_s);
+    const found=idList.map(id=>state.byId.animators.get(id)).filter(Boolean);
+    const displayed=names(a.gristHelper_Display).concat(names(a.Animateur_s2));
+    for(const written of displayed){
       const entry=staffByName.get(norm(written));
-      if(entry&&!resolved.some(x=>x.id===entry.id))resolved.push(entry);
+      if(entry&&!found.some(x=>x.id===entry.id))found.push(entry);
     }
-    const unresolvedIds=refIds.filter(id=>!state.byId.animators.has(id));
-    const display=unique([...resolved.map(fullName),...knownNames.filter(n=>!resolved.some(p=>norm(fullName(p))===norm(n)))]);
-    if(!display.length&&!noStaff(a.Nom_activite)&&!isFree(a.Nom_activite)&&!isReference(a.Nom_activite))
-      notes.push(`Animateur non retrouvé : ${text(a.Nom_activite)} (vérifier Activites.Animateur_s).`);
-    if(unresolvedIds.length)notes.push(`Référence animateur introuvable pour : ${text(a.Nom_activite)}.`);
-    const status=resolved.map(x=>statusKind(x.Status));
-    const category=status.includes('saj')?'saj':status.includes('external')&&status.every(s=>s==='external')?'external':noStaff(a.Nom_activite)?'saj':'unknown';
-    if(category==='unknown'&&!isFree(a.Nom_activite)&&!isReference(a.Nom_activite))
-      notes.push(`Statut à confirmer : ${text(a.Nom_activite)} (ni SAJ ni extérieur déduit automatiquement).`);
-    return {staff:display.join(' · '),category};
+    const idMissing=idList.filter(id=>!state.byId.animators.has(id));
+    const formatted=unique(found.map(shortStaffName));
+    // Fallback si le champ d'affichage Grist contient un nom sans référence retrouvée.
+    // Éviter de perdre un nom ; sans statut identifiable, le montrer en entier.
+    for(const written of displayed){
+      const already=found.some(p=>norm(fullName(p))===norm(written)||norm(text(p.Nom2))===norm(written));
+      if(!already)formatted.push(written);
+    }
+    if(!formatted.length&&!noStaff(a.Nom_activite)&&!isFree(a.Nom_activite)&&!isReference(a.Nom_activite))
+      notes.push(`Professionnel non retrouvé : ${text(a.Nom_activite)} (vérifier Activites.Animateur_s).`);
+    if(idMissing.length)notes.push(`Référence animateur introuvable pour : ${text(a.Nom_activite)}.`);
+    return unique(formatted).join(' · ');
   }
   function sortedYears(){return [...(state.raw.years||[])].sort((a,b)=>Number(b.Debut||0)-Number(a.Debut||0)||text(b.Annee).localeCompare(text(a.Annee),'fr',{numeric:true}));}
   function fillYears(){
@@ -205,7 +209,8 @@
     const animatorByName=new Map();
     for(const s of state.raw.animators){for(const label of [fullName(s),`${text(s.Nom)} ${text(s.Prenom)}`])if(label)animatorByName.set(norm(label),s);}
     const cells=new Map();
-    function bucket(userId,day,half){const key=`${userId}|${day}|${half}`;if(!cells.has(key))cells.set(key,{activities:[],rehab:[],reference:[]});return cells.get(key);}
+    const openActivities=[];
+    function bucket(userId,day,half){const key=`${userId}|${day}|${half}`;if(!cells.has(key))cells.set(key,{activities:[],rehab:[]});return cells.get(key);}
     let activityCount=0;
     for(const [actId,participants] of assigned){
       const a=state.byId.activities.get(actId);if(!a)continue;
@@ -218,21 +223,61 @@
       }
       if(!day||!half){errors.push(`Jour ou demi-journée inconnus : ${text(a.Nom_activite)}.`);continue;}
       const specialFree=isFree(a.Nom_activite),specialRef=isReference(a.Nom_activite);
-      const staff=(specialFree||specialRef)?{staff:'',category:'saj'}:staffFor(a,animatorByName,notes);
-      const item={id:actId,name:text(a.Nom_activite)||'Activité',sort:Number.isFinite(minutes(start))?minutes(start):9999,
-        category:specialFree?'free':staff.category,staff:staff.staff};
+      if(specialRef)continue; // Colonnes et activités « Temps de référence » supprimées.
+      const staff=specialFree?'':staffFor(a,animatorByName,notes);
+      const item={id:actId,name:text(a.Nom_activite)||'Activité',sort:Number.isFinite(minutes(start))?minutes(start):9999,staff,open:false};
       for(const userId of participants){
         if(!peopleById.has(userId)){notes.push(`Participant ${userId} introuvable pour ${item.name}.`);continue;}
         const entry=bucket(userId,day,half);
-        if(specialRef)entry.reference.push(item.name);
-        else entry.activities.push(item);
+        entry.activities.push(item);
       }
       activityCount++;
     }
-    for(const [key,entry] of cells){
-      entry.activities.sort((a,b)=>a.sort-b.sort||a.name.localeCompare(b.name,'fr'));
-      entry.reference=unique(entry.reference);
+    // Groupe ouvert : inscrit dans Activites.Groupe_ouvert.
+    // Règle : le proposer uniquement aux usagers présents qui n'ont AUCUNE
+    // inscription sur la même demi-journée (y compris temps libre).
+    // Une proposition de groupe ouvert reste visuellement distincte d'une inscription.
+    // Pour éviter de réutiliser une activité d'une autre année, les groupes ouverts
+    // sans champ Annee sont proposés seulement pour l'année actuelle.
+    for(const a of state.raw.activities){
+      if(!trueValue(a.Groupe_ouvert))continue;
+      const activityYear=ref(a.Annee);
+      if(activityYear?activityYear!==yearId:!isCurrent)continue;
+      const day=dayFrom(a.Jour,a.Numero_du_jour_de_la_semaine);
+      const start=clock(a.Heure_debut)||text(a.gristHelper_Display3);
+      const half=halfFrom(start,a.Creneau);
+      if(!day||!half){notes.push(`Groupe ouvert sans jour/créneau identifié : ${text(a.Nom_activite)}.`);continue;}
+      if(isReference(a.Nom_activite))continue;
+      const staff=isFree(a.Nom_activite)?'':staffFor(a,animatorByName,notes);
+      openActivities.push({id:a.id,day,half,name:text(a.Nom_activite)||'Activité ouverte',
+        sort:Number.isFinite(minutes(start))?minutes(start):9999,staff,open:true});
     }
+    let proposedOpen=0;
+    const availableOpen=new Map();
+    for(const a of openActivities){
+      const key=`${a.day}|${a.half}`;
+      if(!availableOpen.has(key))availableOpen.set(key,[]);
+      availableOpen.get(key).push(a);
+    }
+    for(const person of people){
+      for(const day of DAYS){
+        if(person.flags?.[day.i-1]!==true)continue;
+        for(const half of HALVES){
+          const cell=bucket(person.id,day.i,half.value);
+          if(cell.activities.length)continue;
+          const offers=availableOpen.get(`${day.i}|${half.value}`)||[];
+          for(const offer of offers){
+            cell.activities.push(offer);
+            proposedOpen++;
+          }
+        }
+      }
+    }
+    for(const entry of cells.values()){
+      entry.activities.sort((a,b)=>a.sort-b.sort||a.name.localeCompare(b.name,'fr'));
+    }
+    if(proposedOpen){notes.push(`${proposedOpen} proposition(s) de groupes ouverts affichée(s) pour des demi-journées sans inscription. Ces propositions ne sont pas des inscriptions confirmées.`);}
+
     const rehabHasYear=state.columns.reeducations.includes('Annee');
     if(!rehabHasYear&&!isCurrent)errors.push('Reeducations.Annee absent : impossible de restituer les rendez-vous des années archivées.');
     const kineCount=new Map();let rehabCount=0;
@@ -254,32 +299,31 @@
     for(const p of people){for(const d of DAYS){
       if(p.flags?.[d.i-1]===false){
         for(const half of HALVES){const b=cells.get(`${p.id}|${d.i}|${half.value}`);
-          if(b&&(b.activities.length||b.rehab.length||b.reference.length))notes.push(`Données planifiées un jour d’absence : ${p.name}, ${d.label}.`);
+          if(b&&(b.activities.length||b.rehab.length))notes.push(`Données planifiées un jour d’absence : ${p.name}, ${d.label}.`);
         }
       }
     }}
     const maxEntries=Math.max(0,...[...cells.values()].map(x=>x.activities.length));
-    if(maxEntries>=4)notes.push(`Une demi-journée comporte jusqu'à ${maxEntries} activités pour un usager : vérifier la lisibilité sur A4.`);
+    if(maxEntries>2){
+      const hidden=[...cells.values()].reduce((n,c)=>n+Math.max(0,c.activities.length-2),0);
+      notes.push(`${hidden} activité(s) ou proposition(s) de groupe ouvert non affichée(s) : seules les 2 premières par demi-journée sont retenues (heure de début, puis nom).`);
+    }
     return {year,people,cells,errors,notes:unique(notes),activityCount,rehabCount,maxEntries};
   }
   function renderEvent(event){
-    const type=event.category;
-    const showStaff=!noStaff(event.name)&&type!=='free'&&!!event.staff;
-    return `<div class="activity-item ${esc(type==='saj'?'':type)}" title="${esc(event.name+(showStaff?' — '+event.staff:''))}">
-      <span class="activity-name">${esc(type==='free'?'Temps libre':event.name)}</span>
+    const showStaff=!noStaff(event.name)&&!isFree(event.name)&&!!event.staff;
+    return `<div class="activity-item" title="${esc(event.name+(showStaff?' — '+event.staff:''))}">
+      <span class="activity-name">${esc(isFree(event.name)?'Temps libre':event.name)}${event.open?'<span class="open-tag"> (ouverte)</span>':''}</span>
       ${showStaff?`<span class="activity-staff">${esc(event.staff)}</span>`:''}
     </div>`;
   }
   function cellsFor(person,day,half){
     const halfStart=half.value==='matin'?'day-start':'half-start';
-    const b=state.model.cells.get(`${person.id}|${day.i}|${half.value}`)||{activities:[],rehab:[],reference:[]};
-    const acts=b.activities.map(renderEvent).join('');
+    const b=state.model.cells.get(`${person.id}|${day.i}|${half.value}`)||{activities:[],rehab:[]};
+    const acts=b.activities.slice(0,2).map(renderEvent).join('');
     const kine=b.rehab.map(e=>`<span class="rehab-entry" title="${esc(e.kind+' '+e.hour)}">${esc(e.hour)}</span>`).join('');
-    // Les temps de référence ne sont JAMAIS déduits ; seulement explicitement inscrits.
-    const refs=b.reference.length?'R':''; // Format court : colonne de 3,5 mm, sans débordement
     return `<td class="activities ${halfStart}"><div class="events">${acts}</div></td>
-      <td class="rehab" title="${esc(b.rehab.map(x=>x.kind+' '+x.hour).join(' / '))}">${kine}</td>
-      <td class="reference" title="${esc(b.reference.join(' · '))}">${refs}</td>`;
+      <td class="rehab" title="${esc(b.rehab.map(x=>x.kind+' '+x.hour).join(' / '))}">${kine}</td>`;
   }
   function render(){
     if(!state.loaded)return;
@@ -294,28 +338,55 @@
     const target=model.people.length?Math.min(maxRow,usableRows/model.people.length):maxRow;
     document.documentElement.style.setProperty('--row-mm',`${Math.max(minRow,target).toFixed(2)}mm`);
     if(model.people.length&&target<minRow)model.errors.push('Nombre d’usagers trop élevé pour garder des cases lisibles sur une page A3.');
-    const dayHeads=DAYS.map(d=>`<th colspan="6" class="day-label day-start" style="background:${dayColor(d)}">${esc(d.label)}</th>`).join('');
-    const periodHeads=DAYS.map(d=>HALVES.map(h=>`<th colspan="3" class="half-label ${h.value==='matin'?'day-start':'half-start'}">${esc(h.label)}</th>`).join('')).join('');
-    const types=DAYS.map(d=>HALVES.map(h=>`<th class="type-label ${h.value==='matin'?'day-start':'half-start'}">Activités</th><th class="type-label rehab-header">Kiné / Ortho</th><th class="type-label ref-header">Temps de réf.</th>`).join('')).join('');
+    const dayHeads=DAYS.map(d=>`<th colspan="4" class="day-label day-start" style="background:${dayColor(d)}">${esc(d.label)}</th>`).join('');
+    const periodHeads=DAYS.map(d=>HALVES.map(h=>`<th colspan="2" class="half-label ${h.value==='matin'?'day-start':'half-start'}">${esc(h.label)}</th>`).join('')).join('');
+    const types=DAYS.map(d=>HALVES.map(h=>`<th class="type-label ${h.value==='matin'?'day-start':'half-start'}">Activités</th><th class="type-label rehab-header">Kiné / Ortho</th>`).join('')).join('');
     const body=model.people.map((p,i)=>{
       let tds='';
       for(const d of DAYS){
-        if(p.flags?.[d.i-1]===false)tds+='<td class="absent day-start" colspan="6">Absent</td>';
+        if(p.flags?.[d.i-1]===false)tds+='<td class="absent day-start" colspan="4">Absent</td>';
         else for(const h of HALVES)tds+=cellsFor(p,d,h);
       }
       return `<tr data-user="${p.id}" class="${p.id===state.userId?'selected':''}"><td class="identity number">${i+1}</td><td class="identity user" title="${esc(p.name)}">${esc(p.name)}</td>${tds}</tr>`;
     }).join('');
     const html=`<table class="planning" aria-label="Planning général SAJ Anagallis"><colgroup>
-      <col style="width:7mm"><col style="width:34mm">${Array.from({length:10},()=>'<col style="width:25.7mm"><col style="width:7.7mm"><col style="width:3.5mm">').join('')}</colgroup>
+      <col style="width:7mm"><col style="width:34mm">${Array.from({length:10},()=>'<col style="width:29.3mm"><col style="width:7.5mm">').join('')}</colgroup>
       <thead><tr><th rowspan="3" class="num-col">N°</th><th rowspan="3" class="name-col">Usagers</th>${dayHeads}</tr>
       <tr>${periodHeads}</tr><tr>${types}</tr></thead><tbody>${body}</tbody></table>`;
     $('tableHost').innerHTML=html;$('sheet').hidden=false;
+    // Ligne identique pour tous les usagers : chaque zone d'activités est bornée
+    // à la hauteur de sa ligne ; réduction locale de la police si nécessaire.
+    fitCellText(model);
     warnings([...model.errors,...model.notes]);
     const ok=model.people.length>0&&!model.errors.length;
     $('printBtn').disabled=!ok;$('pdfBtn').disabled=!ok;
-    show(`${model.people.length} usagers · ${model.activityCount} activités enregistrées · ${model.rehabCount} rendez-vous kiné/ortho. ${ok?'Planning prêt à être vérifié et imprimé.':'Vérifier les problèmes signalés avant impression.'}`,!ok);
+    show(`${model.people.length} usagers · ${model.activityCount} activités inscrites · ${model.rehabCount} rendez-vous kiné/ortho. ${ok?'Planning prêt à être vérifié et imprimé.':'Vérifier les problèmes signalés avant impression.'}`,!ok);
     fitScreen();
     calculatePrintFit();
+  }
+  function fitCellText(model){
+    // Ne jamais agrandir une ligne isolée : le document A3 doit garder un
+    // alignement horizontal strict. Signaler tout débordement non résolu.
+    for(const wrapper of $('tableHost').querySelectorAll('.events')){
+      const names=[...wrapper.querySelectorAll('.activity-name')];
+      const staffs=[...wrapper.querySelectorAll('.activity-staff')];
+      let factor=1;
+      while(wrapper.scrollHeight>wrapper.clientHeight+1 && factor>.70){
+        factor=Math.max(.70,+(factor-.04).toFixed(2));
+        names.forEach(el=>el.style.fontSize=(6.65*factor).toFixed(2)+'pt');
+        staffs.forEach(el=>el.style.fontSize=(5.25*factor).toFixed(2)+'pt');
+      }
+      if(wrapper.scrollHeight>wrapper.clientHeight+1){
+        const cell=wrapper.closest('td');const row=wrapper.closest('tr');
+        const index=[...row.cells].indexOf(cell);
+        const dayIndex=Math.floor((index-2)/4);
+        const halfIndex=Math.floor(((index-2)%4)/2);
+        const day=DAYS[dayIndex]?.label||'jour inconnu';
+        const half=HALVES[halfIndex]?.label||'créneau inconnu';
+        const name=row.querySelector('td.user')?.textContent||'Usager inconnu';
+        model.errors.push(`Contenu trop long pour une ligne de hauteur uniforme : ${name}, ${day} ${half}.`);
+      }
+    }
   }
   function fitScreen(){
     if($('sheet').hidden)return;
