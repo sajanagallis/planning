@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Planning général — SAJ Anagallis</title>
+  <link rel="stylesheet" href="style.css">
+  <script defer src="https://docs.getgrist.com/grist-plugin-api.js"></script>
+  <script defer src="script.js"></script>
+</head>
+<body>
+  <main id="app">
+    <header class="controls no-print" aria-label="Contrôles du planning">
+      <div class="control">
+        <label for="yearSelect">Année scolaire</label>
+        <select id="yearSelect" disabled><option>Chargement…</option></select>
+      </div>
+      <div class="control">
+        <label for="personSelect">Repérer un usager (écran seulement)</label>
+        <select id="personSelect" disabled><option value="">Tous les usagers</option></select>
+      </div>
+      <div class="control">
+        <label for="formatSelect">Format papier</label>
+        <select id="formatSelect" aria-label="Format papier">
+          <option value="a3" selected>A3 paysage</option>
+          <option value="a4">A4 paysage</option>
+        </select>
+      </div>
+      <button id="refreshBtn" type="button" class="secondary">Actualiser Grist</button>
+      <button id="printBtn" type="button" class="primary" disabled>Imprimer</button>
+      <button id="pdfBtn" type="button" class="primary" disabled>Créer un PDF</button>
+    </header>
+
+    <div class="messages no-print" aria-live="polite">
+      <p id="status" class="status">Connexion à Grist…</p>
+      <p id="formatNote" class="format-note">A3 paysage · pour créer un PDF, choisir « Enregistrer au format PDF » dans la fenêtre d’impression.</p>
+      <ul id="warnings" class="warnings" hidden></ul>
+    </div>
+
+    <section id="sheet" class="sheet" aria-label="Feuille de planning A3 paysage" hidden>
+      <div class="sheet-title">
+        <strong>PLANNING DES USAGERS — SAJ ANAGALLIS</strong>
+        <span id="titleYear"></span>
+      </div>
+      <div id="tableHost" class="table-host"></div>
+      <footer class="sheet-footer">
+        <div class="legend">
+          <span><b>X</b> activité inscrite</span>
+          <span><b>○</b> groupe ouvert proposé (non-inscrit)</span>
+          <span><b class="legend-absent">Absent</b> jour sans présence habituelle</span>
+          <span><b>9h15</b> exemple d'horaire individuel kiné/ortho</span>
+        </div>
+        <div class="print-meta"><span id="footerYear"></span><span id="printDate"></span></div>
+      </footer>
+    </section>
+  </main>
+</body>
+</html>
