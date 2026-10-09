@@ -1,85 +1,614 @@
+/* ==========================================================
+   PLANNING AFFICHAGE — A3 IDENTIQUE ÉCRAN / PRINT / PDF
+   Gabarit fidèle au croquis fourni
+   ========================================================== */
+
 :root {
-  --ink: #111; --navy: #183b62;
-  --activity: #d7f3de; --external: #d1d5db;
-  --rehab: #7641ac; --reference: #bde7fc; --free: #f5c8df;
-  --absence: #ffb954; --row-light: #fff; --row-tint: #f5f8fa;
-  --line: #000;
-  --head-mm: 72mm; --row-mm: 6mm; --print-usable-width: 410mm; --print-usable-height: 287mm;
-}
-* { box-sizing: border-box; }
-html, body { margin: 0; padding: 0; background: #e8edf2; color: #192533; font-family: Arial, Helvetica, sans-serif; }
-.controls { position: sticky; top: 0; z-index: 10; background: #fff; padding: 12px 14px; display: flex; align-items: end; gap: 10px; flex-wrap: wrap; border-bottom: 2px solid #223b56; }
-.control { display: flex; flex-direction: column; gap: 4px; }
-.control label { font-weight: 700; font-size: 12px; }
-.control select { padding: 7px; border: 1px solid #8995a2; border-radius: 5px; background: #fff; min-width: 175px; }
-button { padding: 9px 12px; border-radius: 5px; border: 1px solid #23466b; font-weight: 700; cursor: pointer; }
-button:disabled { cursor: not-allowed; opacity: .5; }
-button.primary { background: #183b62; color: #fff; }
-button.secondary { background: #fff; color: #183b62; }
-.messages { margin: 8px 12px; font-size: 12px; }
-.status { margin: 0 0 7px; }
-.status.error { color: #9c2222; font-weight: 700; }
-.format-note {font-size:11px; color:#415266; margin:4px 0 8px;}
-.warnings { background: #fff6d7; border: 1px solid #ad7e28; border-radius: 5px; padding: 8px 10px 8px 28px; max-width: 950px; margin: 4px 0 10px; }
-.warnings li { margin: 2px 0; }
-.sheet { width: 410mm; max-width: none; padding: 0; margin: 14px auto; background: #fff; color: #000; box-shadow: 0 3px 14px #0002; overflow: visible; }
-.sheet-title { height: 11mm; background: #183b62; color: white; display: flex; align-items: center; justify-content: space-between; padding: 0 3mm; gap: 4mm; font-size: 15pt; }
-.sheet-title span { font-size: 12pt; white-space: nowrap; }
-.table-host { width: 100%; }
-.planning-table { width: 100%; border-collapse: collapse; table-layout: fixed; border: 1.1px solid var(--line); }
-.planning-table th,.planning-table td { border: .5px solid var(--line); padding: 0; text-align: center; vertical-align: middle; overflow: hidden; }
-.planning-table .day-row th { height: 7mm; font-size: 10pt; font-weight: 700; color: #121827; border-bottom: 1.2px solid var(--line); }
-.planning-table .half-row th { height: 6mm; font-size: 8.2pt; background: #f5f5f5; border-bottom: 1.3px solid var(--line); }
-.planning-table th.identity { background: #dfebf8; font-size: 10pt; }
-.planning-table .header-row th { height: var(--head-mm); font-size: 7.1pt; vertical-align: top; }
-.column-head { height: var(--head-mm); display: flex; flex-direction: column; align-items: stretch; overflow: hidden; }
-.head-activity { height: 50%; display: flex; justify-content: center; align-items: center; overflow: hidden; font-weight: 700; }
-.head-pro { height: 50%; border-top: 1px solid #000; display: flex; justify-content: center; align-items: center; overflow: hidden; font-weight: 400; }
-.vertical-label { display: block; writing-mode: vertical-rl; transform: rotate(180deg); text-align: center; max-height: 100%; max-width: 100%; white-space: nowrap; line-height: 1.05; }
-.header-row .kind-activity { background: var(--activity); }
-.header-row .kind-external { background: var(--external); }
-.header-row .kind-rehab { background: var(--rehab); color: #fff; }
-.header-row .kind-reference { background: var(--reference); }
-.header-row .kind-free { background: var(--free); }
-.header-row .kind-rehab .head-activity { height: 100%; }
-.header-row .kind-reference .head-activity { height: 100%; }
-.header-row .kind-free .head-activity { height: 100%; }
-.planning-table tbody td { height: var(--row-mm); font-size: 8.5pt; color: #111; }
-.planning-table tbody tr:nth-child(even) td { background-color: var(--row-tint); }
-.planning-table tbody .usager { text-align: left; padding: 0 .7mm; font-weight: 700; white-space: nowrap; font-size: 8pt; }
-.planning-table tbody .ordinal { font-weight: 700; font-size: 8pt; }
-.planning-table tbody tr:nth-child(3n) td { border-bottom: 1.5px solid #000 !important; }
-.planning-table .day-start { border-left: 1.5px solid #000 !important; }
-.planning-table .half-start { border-left: 1px solid #000 !important; }
-.planning-table tbody .kind-rehab { background: #eee7f7 !important; font-weight: 700; font-size: 7pt; white-space: nowrap; letter-spacing: -.1px; }
-.planning-table tbody .kind-reference { background: #ecf8ff !important; }
-.planning-table tbody .kind-free { background: #fef0f7 !important; }
-.planning-table tbody .kind-external { background: #f1f1f1 !important; }
-.planning-table tbody .kind-activity { background: #f6fcf7 !important; }
-.planning-table tbody .absent { background: var(--absence) !important; font-size: 8pt; font-weight: 700; text-align: center; }
-.planning-table tbody tr.selected td:not(.absent) { outline: 1px solid #aa7200; outline-offset: -1px; box-shadow: inset 0 0 0 999px #fff4b066; }
-.planning-table tbody tr.selected .usager { background: #fff0a6 !important; }
-.sheet-footer { padding: 2mm 2.5mm 1.5mm; display: flex; justify-content: space-between; align-items: center; gap: 3mm; font-size: 7pt; }
-.legend { display: flex; flex-wrap: wrap; gap: 1.5mm 4mm; }
-.legend-absent { background: var(--absence); padding: 0 2px; }
-.print-meta { white-space: nowrap; display: flex; flex-direction: column; text-align: right; gap: 1mm; }
-/* Format par défaut : JS ajoute une règle @page A3 ou A4 après la feuille CSS. */
-@page { size: A3 landscape; margin: 5mm; }
-@media screen {
-  /* Représenter l'A4 à sa vraie taille relative (A3 réduit d'un facteur 0,7). */
-  body.format-a4 .sheet {zoom:.7;}
-}
-@media print {
-  html,body { width: var(--print-usable-width) !important; height: var(--print-usable-height) !important; background: #fff !important; margin: 0 !important; padding: 0 !important; overflow: hidden !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-  .no-print { display: none !important; }
-  .sheet { position: absolute !important; left: 0 !important; top: 0 !important; width: 410mm !important; max-width: none; margin: 0 !important; padding: 0 !important; box-shadow: none !important; overflow: visible !important; zoom:1 !important; transform-origin: top left !important; }
-  body.format-a4 .sheet { transform: none !important; zoom: .7 !important; }
-  body:not(.format-a4) .sheet { transform: none !important; }
-  .sheet-title { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-  .planning-table tbody tr.selected td { outline: none; box-shadow: none; }
-  .planning-table tbody tr.selected .usager { background: unset !important; }
-  .planning-table td,.planning-table th { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  --ink: #183042;
+  --muted: #687883;
+  --line: #dbe5ea;
+  --paper: #ffffff;
+  --background: #eef3f6;
+  --purple: #6421a8;
+  --purple-dark: #50178c;
+  --purple-soft: #f2eafb;
+
+  /* Dimensions physiques imposées */
+  --a3-width: 297mm;
+  --a3-height: 420mm;
+  --page-padding: 8mm;
+  --pictogram-size: 60mm;       /* 6 cm x 6 cm */
+  --participant-photo: 20mm;    /* 2 cm x 2 cm */
+  --photo-gap-x: 3mm;
+  --photo-gap-y: 2.5mm;
+
+  /* 3 photos de 2 cm + 2 espaces de 3 mm = 66 mm */
+  --right-block-width: 66mm;
 }
 
-.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
-.planning-table tbody td.multi-rehab { font-size: 6pt; line-height: 1.05; }
+* { box-sizing: border-box; }
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  min-height: 100%;
+  font-family: Inter, "Segoe UI", Arial, sans-serif;
+  color: var(--ink);
+  background: var(--background);
+}
+
+.hidden { display: none !important; }
+
+/* ==========================================================
+   BARRE SUPÉRIEURE
+   ========================================================== */
+
+.toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+  padding: 12px 20px;
+  background: white;
+  border-bottom: 1px solid var(--line);
+  box-shadow: 0 3px 12px rgba(23, 48, 66, .08);
+}
+
+.brand { display: flex; align-items: center; gap: 12px; }
+
+.brand-mark {
+  width: 46px;
+  height: 46px;
+  display: grid;
+  place-items: center;
+  border-radius: 14px;
+  background: var(--purple);
+  color: white;
+  font-weight: 900;
+}
+
+.brand h1 { margin: 0; font-size: 18px; }
+.brand p { margin: 2px 0 0; color: var(--muted); font-size: 12px; }
+
+#printBtn {
+  min-height: 40px;
+  padding: 0 18px;
+  border: none;
+  border-radius: 9px;
+  background: var(--purple);
+  color: white;
+  font-size: 14px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+#printBtn:hover { background: var(--purple-dark); }
+
+/* ==========================================================
+   APPLICATION
+   ========================================================== */
+
+#app {
+  padding: 22px;
+  overflow-x: hidden;
+}
+
+.status {
+  max-width: 900px;
+  margin: 45px auto;
+  padding: 28px;
+  text-align: center;
+  background: white;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+}
+
+.status.error { color: #a43434; }
+
+.pages {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 28px;
+}
+
+/* Le wrapper prend la taille de la feuille après zoom écran. */
+.a3-preview {
+  position: relative;
+  flex: 0 0 auto;
+  margin: 0 auto;
+}
+
+/* ==========================================================
+   PAGE A3 — UNE DEMI-JOURNÉE
+   ========================================================== */
+
+.period {
+  position: absolute;
+  inset: 0 auto auto 0;
+  width: var(--a3-width);
+  height: var(--a3-height);
+  min-width: var(--a3-width);
+  min-height: var(--a3-height);
+  max-width: var(--a3-width);
+  max-height: var(--a3-height);
+  transform-origin: top left;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  padding: var(--page-padding);
+  /* Fond de page = teinte pâle mais visible du jour */
+  background: var(--day-background);
+  box-shadow: 0 8px 30px rgba(23, 48, 66, .14);
+}
+
+.period--overflow::after {
+  content: "Contenu trop important pour une seule page A3";
+  position: absolute;
+  right: 5mm;
+  bottom: 2mm;
+  padding: 1mm 2mm;
+  border-radius: 2mm;
+  background: #fff3cd;
+  color: #7a5b00;
+  font-size: 9pt;
+  font-weight: 700;
+}
+
+.period-page-header {
+  flex: 0 0 auto;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  min-height: 16mm;
+  margin: calc(-1 * var(--page-padding)) calc(-1 * var(--page-padding)) 5mm;
+  padding: 3mm var(--page-padding);
+  background: var(--day-color);
+  color: white;
+}
+
+.period-day {
+  font-size: 22pt;
+  line-height: 1;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+}
+
+.period-title {
+  padding: 1.6mm 3.2mm;
+  border: .5mm solid rgba(255, 255, 255, .75);
+  border-radius: 999px;
+  font-size: 13pt;
+  line-height: 1;
+  font-weight: 900;
+  letter-spacing: .07em;
+}
+
+/* ==========================================================
+   GRILLE DES ACTIVITÉS
+   Deux colonnes égales : toute activité 1–9 ou ouverte
+   peut partager la ligne avec une autre activité.
+   ========================================================== */
+
+.activities-list {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-auto-flow: row;
+  align-content: start;
+  align-items: start;
+  gap: 5mm;
+}
+
+.activities-list .activity-card--half { grid-column: span 1; }
+.activities-list .activity-card--full { grid-column: 1 / -1; }
+
+/* ==========================================================
+   TUILE ACTIVITÉ
+   ========================================================== */
+
+.activity-card {
+  position: relative;
+  min-width: 0;
+  width: auto;
+  padding: 2.5mm;
+  /* Les tuiles restent entièrement blanches */
+  background: #ffffff;
+  border: .55mm solid var(--card-color);
+  border-left-width: 1.4mm;
+  border-radius: 2.5mm;
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+/*
+ * STRUCTURE EXACTE DU CROQUIS :
+ * [ pictogramme 6x6 cm ] [ zone droite ]
+ *                           [ texte ]
+ *                           [ photos ]
+ */
+.activity-layout {
+  display: grid;
+  grid-template-columns: var(--pictogram-size) minmax(0, 1fr);
+  column-gap: 4mm;
+  align-items: start;
+  min-width: 0;
+}
+
+.activity-pictogram {
+  width: var(--pictogram-size);
+  height: var(--pictogram-size);
+}
+
+.activity-logo {
+  display: block;
+  width: var(--pictogram-size);
+  height: var(--pictogram-size);
+  min-width: var(--pictogram-size);
+  min-height: var(--pictogram-size);
+  max-width: var(--pictogram-size);
+  max-height: var(--pictogram-size);
+  object-fit: contain;
+  object-position: center;
+  border-radius: 1.5mm;
+  background: white;
+}
+
+.activity-logo--empty {
+  border: .4mm dashed #c9d3d8;
+  background: #f7f9fa;
+}
+
+.activity-main {
+  min-width: 0;
+  width: 100%;
+}
+
+/* La zone texte a exactement la largeur de 3 photos. */
+.activity-header {
+  width: min(100%, var(--right-block-width));
+  min-height: 16mm;
+  padding: 0 0 1.8mm;
+  border-bottom: .35mm solid #dfe6ea;
+}
+
+.activity-title {
+  margin: 0 0 1.2mm;
+  color: #252542;
+  font-size: 13pt;
+  line-height: 1.05;
+  font-weight: 850;
+  font-variant-caps: small-caps;
+  overflow-wrap: break-word;
+}
+
+.activity-time {
+  display: inline-flex;
+  align-items: center;
+  margin-bottom: .8mm;
+  padding: .8mm 1.8mm;
+  border-radius: 999px;
+  background: var(--purple-soft);
+  color: var(--purple);
+  font-size: 9.5pt;
+  line-height: 1;
+  font-weight: 900;
+}
+
+.activity-meta,
+.activity-remarks {
+  margin-top: .8mm;
+  color: #4e626e;
+  font-size: 9pt;
+  line-height: 1.12;
+  overflow-wrap: break-word;
+}
+
+.activity-meta strong { color: var(--ink); }
+.activity-meta--empty { min-height: 3mm; }
+
+/* ==========================================================
+   PARTICIPANTS
+   Photos fixes de 2 cm x 2 cm.
+   ========================================================== */
+
+.participants-grid {
+  display: grid;
+  width: max-content;
+  max-width: 100%;
+  margin-top: 2mm;
+  grid-auto-rows: auto;
+  justify-content: start;
+  justify-items: start;
+  align-items: start;
+  column-gap: var(--photo-gap-x);
+  row-gap: var(--photo-gap-y);
+  font-variant-caps: small-caps;
+}
+
+/* 1 à 6 : 3 colonnes, 1 ou 2 rangées comme le dessin. */
+.activity-card--1-6 .participants-grid {
+  grid-template-columns: repeat(3, var(--participant-photo));
+}
+
+/* 7 à 9 : 3 colonnes, 3 rangées comme le dessin. */
+.activity-card--7-9 .participants-grid {
+  grid-template-columns: repeat(3, var(--participant-photo));
+}
+
+/*
+ * PLUS DE 9 — GABARIT SPÉCIFIQUE DU CROQUIS :
+ *
+ * [ PICTO 6 x 6 cm ] [ ZONE TEXTE = largeur de 3 photos ]
+ *                     [ 1 ][ 2 ][ 3 ][ 4 ][ 5 ][ 6 ][ 7 ][ 8 ][ 9 ]
+ *                     [10 ][11 ][12 ][13 ][14 ][15 ][16 ][17 ][18 ]
+ *                     [19 ][20 ][21 ] ...
+ *
+ * La tuile occupe obligatoirement toute la largeur.
+ * Le pictogramme reste à gauche. Toutes les photos restent à droite
+ * du pictogramme, en 9 colonnes fixes de 2 cm, exactement comme le dessin.
+ */
+.activity-card--10plus {
+  grid-column: 1 / -1 !important;
+}
+
+.activity-card--10plus .activity-main {
+  min-width: 204mm;
+}
+
+.activity-card--10plus .activity-header {
+  width: var(--right-block-width);
+  max-width: var(--right-block-width);
+}
+
+.activity-card--10plus .participants-grid {
+  width: 204mm;
+  max-width: none;
+  grid-template-columns: repeat(9, var(--participant-photo));
+}
+
+.participant {
+  width: var(--participant-photo);
+  min-width: var(--participant-photo);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-start;
+  text-align: left;
+}
+
+.participant-photo,
+.participant-photo img {
+  width: var(--participant-photo);
+  height: var(--participant-photo);
+  min-width: var(--participant-photo);
+  min-height: var(--participant-photo);
+  max-width: var(--participant-photo);
+  max-height: var(--participant-photo);
+  border-radius: 1mm;
+}
+
+.participant-photo {
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  background: #edf3f5;
+  border: .45mm solid white;
+  box-shadow: 0 0 0 .3mm #b7c5cc;
+  color: var(--purple);
+  font-size: 9.5pt;
+  font-weight: 900;
+}
+
+.participant-photo img {
+  display: block;
+  object-fit: cover;
+  object-position: center center;
+}
+
+.participant-name {
+  width: var(--participant-photo);
+  height: 3.6mm;
+  margin-top: .7mm;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--ink);
+  font-size: 7.2pt;
+  line-height: 1.05;
+  font-weight: 650;
+}
+
+.participants-grid--empty { display: block; width: 100%; }
+
+.empty-slot {
+  min-height: 12mm;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2mm;
+  border: .35mm dashed #bdcbd1;
+  border-radius: 2mm;
+  background: rgba(255, 255, 255, .45);
+  color: #899aa3;
+  font-size: 9pt;
+  text-align: center;
+}
+
+.empty-period {
+  grid-column: 1 / -1;
+  min-height: 35mm;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: .5mm dashed #bdcbd1;
+  border-radius: 3mm;
+  background: var(--day-background);
+  color: #6f818b;
+  font-size: 14pt;
+  font-weight: 700;
+}
+
+.period-footer {
+  flex: 0 0 auto;
+  margin-top: auto;
+  padding-top: 3mm;
+  color: #8b999f;
+  text-align: center;
+  font-size: 7.5pt;
+}
+
+/* ==========================================================
+   DIALOGUE
+   ========================================================== */
+
+dialog {
+  border: 0;
+  border-radius: 14px;
+  max-width: 620px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, .20);
+}
+
+dialog pre {
+  white-space: pre-wrap;
+  background: #f5f7f8;
+  padding: 12px;
+  border-radius: 8px;
+}
+
+/* ==========================================================
+   IMPRESSION / PDF = MÊME A3 QUE L'ÉCRAN
+   ========================================================== */
+
+/* ==========================================================
+   IMPRESSION / PDF
+
+   Zone de sécurité de 5 mm tout autour de la feuille A3.
+   Elle évite que le nom du jour et MATIN / APRÈS-MIDI soient
+   rognés par les marges non imprimables des imprimantes.
+
+   Le PDF utilise exactement les mêmes règles @media print.
+   ========================================================== */
+
+@page {
+  size: A3 portrait;
+  margin: 5mm;
+}
+
+@media print {
+  :root {
+    --print-page-width: 287mm;  /* 297 - 2 x 5 mm */
+    --print-page-height: 410mm; /* 420 - 2 x 5 mm */
+    --print-inner-padding: 5mm;
+  }
+
+  html,
+  body {
+    margin: 0 !important;
+    padding: 0 !important;
+    background: white !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .no-print,
+  .status {
+    display: none !important;
+  }
+
+  #app {
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+  }
+
+  .pages {
+    display: block !important;
+    width: var(--print-page-width) !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  .a3-preview {
+    position: relative !important;
+    width: var(--print-page-width) !important;
+    height: var(--print-page-height) !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+    break-after: page;
+    page-break-after: always;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .a3-preview:last-child {
+    break-after: auto;
+    page-break-after: auto;
+  }
+
+  .period {
+    position: absolute !important;
+    inset: 0 auto auto 0 !important;
+    width: var(--print-page-width) !important;
+    height: var(--print-page-height) !important;
+    min-width: var(--print-page-width) !important;
+    min-height: var(--print-page-height) !important;
+    max-width: var(--print-page-width) !important;
+    max-height: var(--print-page-height) !important;
+    padding: var(--print-inner-padding) !important;
+    transform: none !important;
+    overflow: hidden !important;
+    box-shadow: none !important;
+    background: var(--day-background) !important;
+  }
+
+  /*
+   * IMPORTANT : à l'écran le bandeau déborde volontairement jusqu'au bord
+   * de la feuille grâce aux marges négatives. À l'impression on annule ce
+   * débordement : le bandeau reste entièrement dans la zone imprimable.
+   */
+  .period-page-header {
+    width: 100% !important;
+    min-height: 17mm !important;
+    margin: 0 0 5mm 0 !important;
+    padding: 3mm 4mm !important;
+    border-radius: 1.5mm !important;
+    overflow: visible !important;
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+
+  .period-day {
+    min-width: 0;
+    padding: 1mm 0 !important;
+    font-size: 21pt !important;
+    line-height: 1.15 !important;
+    white-space: nowrap !important;
+    overflow: visible !important;
+  }
+
+  .period-title {
+    flex: 0 0 auto;
+    padding: 2mm 3.5mm !important;
+    font-size: 12.5pt !important;
+    line-height: 1.15 !important;
+    white-space: nowrap !important;
+    overflow: visible !important;
+  }
+
+  .activity-card {
+    background: #ffffff !important;
+  }
+
+  .period--overflow::after {
+    display: none !important;
+  }
+}

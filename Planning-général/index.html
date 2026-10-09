@@ -10,49 +10,39 @@
 </head>
 <body>
   <main id="app">
-    <header class="controls no-print" aria-label="Contrôles du planning">
-      <div class="control">
-        <label for="yearSelect">Année scolaire</label>
-        <select id="yearSelect" disabled><option>Chargement…</option></select>
-      </div>
-      <div class="control">
-        <label for="personSelect">Repérer un usager (écran seulement)</label>
-        <select id="personSelect" disabled><option value="">Tous les usagers</option></select>
-      </div>
-      <div class="control">
-        <label for="formatSelect">Format papier</label>
-        <select id="formatSelect" aria-label="Format papier">
-          <option value="a3" selected>A3 paysage</option>
-          <option value="a4">A4 paysage</option>
-        </select>
-      </div>
+    <header class="toolbar no-print">
+      <div class="field"><label for="yearSelect">Année scolaire</label><select id="yearSelect" disabled><option>Chargement…</option></select></div>
+      <div class="field"><label for="personSelect">Repérer un usager (écran)</label><select id="personSelect" disabled><option value="">Tous les usagers</option></select></div>
+      <div class="field"><label for="paperSelect">Impression / PDF</label><select id="paperSelect"><option value="a3">A3 paysage</option><option value="a4">A4 paysage</option></select></div>
+      <div class="field"><label for="viewSelect">Affichage à l'écran</label><select id="viewSelect"><option value="fit">Ajuster à la largeur</option><option value="actual">Taille réelle / faire défiler</option></select></div>
       <button id="refreshBtn" type="button" class="secondary">Actualiser Grist</button>
-      <button id="printBtn" type="button" class="primary" disabled>Imprimer</button>
-      <button id="pdfBtn" type="button" class="primary" disabled>Créer un PDF</button>
+      <button id="printBtn" type="button" disabled>Imprimer</button>
+      <button id="pdfBtn" type="button" disabled>Créer un PDF</button>
     </header>
 
     <div class="messages no-print" aria-live="polite">
-      <p id="status" class="status">Connexion à Grist…</p>
-      <p id="formatNote" class="format-note">A3 paysage · pour créer un PDF, choisir « Enregistrer au format PDF » dans la fenêtre d’impression.</p>
-      <ul id="warnings" class="warnings" hidden></ul>
+      <p id="status">Connexion à Grist…</p>
+      <p id="paperNote">A3 recommandé. Le PDF se crée en choisissant « Enregistrer au format PDF » dans la fenêtre d'impression.</p>
+      <details id="warningDetails" hidden><summary id="warningSummary">Avertissements</summary><ul id="warnings"></ul></details>
     </div>
 
-    <section id="sheet" class="sheet" aria-label="Feuille de planning A3 paysage" hidden>
-      <div class="sheet-title">
-        <strong>PLANNING DES USAGERS — SAJ ANAGALLIS</strong>
-        <span id="titleYear"></span>
-      </div>
-      <div id="tableHost" class="table-host"></div>
-      <footer class="sheet-footer">
-        <div class="legend">
-          <span><b>X</b> activité inscrite</span>
-          <span><b>○</b> groupe ouvert proposé (non-inscrit)</span>
-          <span><b class="legend-absent">Absent</b> jour sans présence habituelle</span>
-          <span><b>9h15</b> exemple d'horaire individuel kiné/ortho</span>
-        </div>
-        <div class="print-meta"><span id="footerYear"></span><span id="printDate"></span></div>
-      </footer>
-    </section>
+    <div id="viewport" class="viewport">
+      <section id="sheet" class="sheet" hidden aria-label="Planning général imprimable">
+        <header class="sheet-title"><strong>Planning SAJ Anagallis</strong><span id="titleYear"></span></header>
+        <div id="tableHost"></div>
+        <footer class="sheet-footer">
+          <div class="legend">
+            <span><i class="swatch saj"></i> Activité SAJ</span>
+            <span><i class="swatch ext"></i> Intervention extérieure/LTC</span>
+            <span><i class="swatch free"></i> Temps libre inscrit</span>
+            <span><i class="swatch rehab"></i> Kiné / Ortho (horaire)</span>
+            <span><i class="swatch ref"></i> Temps de référence renseigné</span>
+            <span><i class="swatch absent"></i> Absent (journée)</span>
+          </div>
+          <div class="date-meta"><span id="footerYear"></span><span id="printDate"></span></div>
+        </footer>
+      </section>
+    </div>
   </main>
 </body>
 </html>
