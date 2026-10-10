@@ -1,5 +1,5 @@
 /*
- * Planning général SAJ Anagallis V9 — groupes ouverts et impression fiabilisée — lecture seule, données Grist.
+ * Planning général SAJ Anagallis V9.1 — bordures uniformes et début de RDV — lecture seule, données Grist.
  * Une grande case « Activités » par usager et demi-journée ; les deux
  * premières activités inscrites, ou proposées en groupe ouvert si la demi-journée
  * est libre, y sont listées. Autre colonne : Kiné/Ortho.
@@ -77,9 +77,21 @@
     const match=text(v).match(/\b(\d{1,2})\s*[h:]\s*(\d{1,2})?/i);
     return match?+match[1]*60+ +(match[2]||0):Number.NaN;
   }
+  // Seule l'heure de DÉBUT est imprimée, même si la valeur Grist
+  // est un créneau complet (« 9h30 - 10h15 », « 09:30 à 10:15 », etc.).
   function simpleHour(v){
-    const m=text(v).match(/\b(\d{1,2})\s*[h:]\s*(\d{1,2})?/i);
+    const m=text(v).match(/\b([01]?\d|2[0-3])\s*[h:]\s*([0-5]?\d)?/i);
     return m?`${+m[1]}h${m[2]&&+m[2]?String(+m[2]).padStart(2,'0'):''}`:'';
+  }
+  // Uniformiser le titre : « 2026-27 » devient « 2026-2027 ».
+  function fullSchoolYear(v){
+    const s=text(v);
+    return s.replace(/(\d{4})\s*[-–—/]\s*(\d{2}|\d{4})(?!\d)/g,(_,start,end)=>{
+      const a=Number(start);
+      let b=Number(end);
+      if(end.length===2){b=Math.floor(a/100)*100+b;if(b<=a)b+=100;}
+      return `${start}-${b}`;
+    });
   }
   function halfFrom(when,creneau){
     const slot=norm(creneau);
@@ -395,8 +407,8 @@
     const model=modelForYear();state.model=model;
     if(!model.year){$('sheet').hidden=true;show('Aucune année',true);warnings(model.errors);return;}
     fillUsers(model.people);
-    $('titleYear').textContent=text(model.year.Annee);
-    $('footerYear').textContent='SAJ Anagallis · '+text(model.year.Annee);
+    $('titleYear').textContent=fullSchoolYear(model.year.Annee);
+    $('footerYear').textContent='SAJ Anagallis · '+fullSchoolYear(model.year.Annee);
     $('printDate').textContent='Édité le '+new Intl.DateTimeFormat('fr-FR').format(new Date());
     // A3 : hauteur disponible 287 mm moins les en-têtes, la légende et les marges.
     const minRow=5.5,maxRow=10.4,usableRows=243;
@@ -412,7 +424,7 @@
         if(p.flags?.[d.i-1]===false)tds+=`<td class="absent day-start" data-day="${esc(d.label)}" data-half="journée" colspan="4">Absent</td>`;
         else for(const h of HALVES)tds+=cellsFor(p,d,h);
       }
-      return `<tr data-user="${p.id}" class="${p.id===state.userId?'selected':''}"><td class="identity number">${i+1}</td><td class="identity user" title="${esc(p.name)}">${esc(p.name)}</td>${tds}</tr>`;
+      return `<tr data-user="${p.id}" class="${p.id===state.userId?'selected':''}"><td class="identity number">${i+1}</td><td class="identity user" title="${esc(p.name)}"><span class="user-label">${esc(p.name)}</span></td>${tds}</tr>`;
     }).join('');
     const html=`<table class="planning" aria-label="Planning général SAJ Anagallis"><colgroup>
       <col style="width:7mm"><col style="width:34mm">${Array.from({length:10},()=>'<col style="width:29.3mm"><col style="width:7.5mm">').join('')}</colgroup>
@@ -454,14 +466,18 @@
     }
     // Les noms longs (par ex. noms composés) peuvent déclencher un débordement
     // même lorsque les activités tiennent correctement dans leurs cases.
+    const nominalRowPx=parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--row-mm'))*96/25.4;
     for(const cell of $('tableHost').querySelectorAll('tbody td.user')){
+      const label=cell.querySelector('.user-label');
       let fontPt=8;
-      while(cell.scrollWidth>cell.clientWidth+2 && fontPt>6){
-        fontPt=+(fontPt-.2).toFixed(2);
+      // Ne pas laisser un nom composé agrandir sa ligne : mesurer le TEXTE,
+      // car la cellule <td> s'agrandit déjà si le texte comporte trois lignes.
+      while(label && (label.scrollWidth>label.clientWidth+1 || label.scrollHeight>nominalRowPx-3) && fontPt>6){
+        fontPt=+(Math.max(6,fontPt-.2)).toFixed(2);
         cell.style.fontSize=fontPt+'pt';
       }
-      if(cell.scrollWidth>cell.clientWidth+2){
-        model.errors.push(`Nom d'usager trop long pour la largeur prévue : ${cell.textContent}.`);
+      if(label && (label.scrollWidth>label.clientWidth+2 || label.scrollHeight>nominalRowPx-2)){
+        model.errors.push(`Nom d'usager trop long pour une ligne de hauteur uniforme : ${cell.textContent}.`);
       }
     }
     // Dans la colonne Kiné/Ortho, réduire très légèrement une heure atypique.
