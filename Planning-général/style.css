@@ -44,6 +44,34 @@ button.secondary{color:#173b63;background:white}button:disabled{opacity:.45;curs
 .events{display:flex;flex-direction:column;gap:0;justify-content:center;min-width:0;height:calc(var(--row-mm) - .5mm);max-height:calc(var(--row-mm) - .5mm);overflow:hidden}
 .activity-item{display:block;min-width:0;padding:.07mm .25mm;line-height:1.0;background:transparent;border:0;overflow-wrap:anywhere}
 .activity-name{display:block;font-weight:700;font-size:6.65pt;line-height:1.0}
+/* V10 : une capsule UNIQUEMENT derrière le libellé. Elle reste dans le flux
+   inline : 0 padding vertical, 0 bordure géométrique, 0 marge, même line-height.
+   Les deux arrondis restent corrects en cas de retour à la ligne. */
+.activity-highlight{
+  display:inline;
+  background:var(--cat-bg,#f2f2f2);
+  color:var(--cat-ink,#202020);
+  border-radius:999px;
+  box-shadow:inset 0 0 0 .65px var(--cat-border,#919191);
+  -webkit-box-decoration-break:clone;
+  box-decoration-break:clone;
+  padding:0 .55mm;
+  margin:0;
+  border:0;
+  line-height:inherit;
+  -webkit-print-color-adjust:exact;
+  print-color-adjust:exact;
+}
+.cat-sport{--cat-bg:#DCEAFB;--cat-border:#3979B9}
+.cat-wellness{--cat-bg:#D4F1E8;--cat-border:#27866D}
+.cat-art{--cat-bg:#ECDDFA;--cat-border:#8750B8}
+.cat-manual{--cat-bg:#FFE5CB;--cat-border:#B56B29}
+.cat-culture{--cat-bg:#FFF1B8;--cat-border:#A18116}
+.cat-social{--cat-bg:#FBD8E6;--cat-border:#B34F7C}
+.cat-autonomy{--cat-bg:#EBAFA8;--cat-border:#9D4038}
+.cat-welcome{--cat-bg:#F4F4F4;--cat-border:#858585}
+.cat-free{--cat-bg:#52606D;--cat-border:#35414B;--cat-ink:#FFFFFF}
+.cat-unclassified{--cat-bg:#F2F2F2;--cat-border:#858585}
 .activity-staff{display:block;font-size:5.25pt;margin-top:0;line-height:1.0}
 .open-tag{font-size:1em;font-weight:900;color:#344f70;white-space:nowrap}
 .planning .rehab{background:#e9def6;text-align:center;font-weight:700;font-size:7pt;white-space:normal;line-height:1.06;overflow:hidden}
@@ -69,3 +97,10 @@ button.secondary{color:#173b63;background:white}button:disabled{opacity:.45;curs
   .planning tbody tr.selected:nth-child(odd) td.user{background:var(--row-white)!important}
   *{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
 }
+
+/* Clé des couleurs à l'écran seulement, sans effet sur la feuille imprimée. */
+.category-legend{margin:0 0 5px;max-width:1050px}
+.category-legend summary{cursor:pointer;font-weight:700;font-size:11px;color:#294057}
+.category-legend-items{display:flex;flex-wrap:wrap;gap:6px 13px;margin:7px 0 4px}
+.category-legend-items span{display:inline-flex;gap:5px;align-items:center;font-size:11px}
+.legend-chip{display:inline-block;width:17px;height:11px;flex:none;border-radius:999px;background:var(--cat-bg,#f2f2f2);box-shadow:inset 0 0 0 1px var(--cat-border,#858585)}

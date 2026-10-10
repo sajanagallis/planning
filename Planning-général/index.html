@@ -3,11 +3,11 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Planning général — SAJ Anagallis (V9)</title>
-  <meta name="widget-version" content="9">
-  <link rel="stylesheet" href="style.css?v=9">
+  <title>Planning général — SAJ Anagallis (V10)</title>
+  <meta name="widget-version" content="10">
+  <link rel="stylesheet" href="style.css?v=10">
   <script defer src="https://docs.getgrist.com/grist-plugin-api.js"></script>
-  <script defer src="script.js?v=9"></script>
+  <script defer src="script.js?v=10"></script>
 </head>
 <body>
   <main id="app">
@@ -25,6 +25,20 @@
       <p id="status">Connexion à Grist…</p>
       <p id="paperNote">A3 recommandé. Le PDF se crée en choisissant « Enregistrer au format PDF » dans la fenêtre d'impression.</p>
       <details id="warningDetails" hidden><summary id="warningSummary">Avertissements</summary><ul id="warnings"></ul></details>
+      <details class="category-legend no-print">
+        <summary>Voir les couleurs des catégories</summary>
+        <div class="category-legend-items">
+          <span><i class="legend-chip cat-sport"></i> Sport</span>
+          <span><i class="legend-chip cat-wellness"></i> Bien-être et sensoriel</span>
+          <span><i class="legend-chip cat-art"></i> Artistique et expression</span>
+          <span><i class="legend-chip cat-manual"></i> Manuel et créatif</span>
+          <span><i class="legend-chip cat-culture"></i> Culturel et cognitif</span>
+          <span><i class="legend-chip cat-social"></i> Communication et socialisation</span>
+          <span><i class="legend-chip cat-autonomy"></i> Autonomie et vie quotidienne</span>
+          <span><i class="legend-chip cat-welcome"></i> Accueil</span>
+          <span><i class="legend-chip cat-free"></i> Temps libre</span>
+        </div>
+      </details>
     </div>
 
     <div id="viewport" class="viewport">
