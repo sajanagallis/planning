@@ -36,16 +36,16 @@ button.secondary{color:#173b63;background:white}button:disabled{opacity:.45;curs
 .planning tbody tr:nth-child(even) td:not(.rehab):not(.absent){background:var(--row-blue)}
 .planning tbody tr:nth-child(odd) td:not(.rehab):not(.absent){background:var(--row-white)}
 .planning tbody td.number{font-weight:700;text-align:center;font-size:8pt}
-.planning tbody td.user{padding:0 1mm;font-size:8pt;font-weight:700;text-align:left;white-space:nowrap}
+.planning tbody td.user{padding:0 1mm;font-size:8pt;font-weight:700;text-align:left;white-space:normal;overflow-wrap:anywhere;line-height:1.05}
 .planning tbody tr:nth-child(3n) td{border-bottom:1.5px solid #000!important}
 .planning .day-start{border-left:1.7px solid #000!important}
 .planning .half-start{border-left:1.1px solid #000!important}
 .planning .activities{padding:.2mm .4mm;vertical-align:middle;text-align:left}
-.events{display:flex;flex-direction:column;gap:.1mm;justify-content:center;min-width:0;height:calc(var(--row-mm) - .5mm);max-height:calc(var(--row-mm) - .5mm);overflow:hidden}
-.activity-item{display:block;min-width:0;padding:.14mm .35mm;line-height:1.0;background:transparent;border:0;overflow-wrap:anywhere}
+.events{display:flex;flex-direction:column;gap:0;justify-content:center;min-width:0;height:calc(var(--row-mm) - .5mm);max-height:calc(var(--row-mm) - .5mm);overflow:hidden}
+.activity-item{display:block;min-width:0;padding:.07mm .25mm;line-height:1.0;background:transparent;border:0;overflow-wrap:anywhere}
 .activity-name{display:block;font-weight:700;font-size:6.65pt;line-height:1.0}
 .activity-staff{display:block;font-size:5.25pt;margin-top:0;line-height:1.0}
-.open-tag{font-size:.9em;font-weight:normal;font-style:italic}
+.open-tag{font-size:1em;font-weight:900;color:#344f70;white-space:nowrap}
 .planning .rehab{background:#e9def6;text-align:center;font-weight:700;font-size:7pt;white-space:normal;line-height:1.06;overflow:hidden}
 .rehab-entry{display:block;white-space:nowrap;font-size:7pt}
 .planning .absent{background:var(--absent)!important;text-align:center;font-size:9pt;font-weight:700}

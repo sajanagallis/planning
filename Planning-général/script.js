@@ -1,5 +1,5 @@
 /*
- * Planning général SAJ Anagallis V7 — lecture seule, données Grist.
+ * Planning général SAJ Anagallis V9 — groupes ouverts et impression fiabilisée — lecture seule, données Grist.
  * Une grande case « Activités » par usager et demi-journée ; les deux
  * premières activités inscrites, ou proposées en groupe ouvert si la demi-journée
  * est libre, y sont listées. Autre colonne : Kiné/Ortho.
@@ -303,31 +303,45 @@
       openActivities.push({id:a.id,day,half,name:text(a.Nom_activite)||'Activité ouverte',
         sort:Number.isFinite(minutes(start))?minutes(start):9999,staff,open:true});
     }
-    let proposedOpen=0;
+    // Un groupe ouvert n'est JAMAIS une inscription. Il est proposé seulement
+    // aux usagers présents dont la demi-journée n'a aucune activité inscrite.
+    // Limiter les propositions à deux AVANT le rendu évite de créer des cellules
+    // artificiellement surchargées. Les activités enregistrées sont prioritaires.
+    let proposedOpen=0,openSlots=0,hiddenOpenOffers=0;
     const availableOpen=new Map();
     for(const a of openActivities){
       const key=`${a.day}|${a.half}`;
       if(!availableOpen.has(key))availableOpen.set(key,[]);
       availableOpen.get(key).push(a);
     }
+    for(const [key,offers] of availableOpen){
+      offers.sort((a,b)=>a.sort-b.sort||a.name.localeCompare(b.name,'fr',{sensitivity:'base'})||a.id-b.id);
+      // Une même activité peut apparaître plusieurs fois dans une table Grist,
+      // mais on ne la propose pas deux fois au même usager.
+      const seen=new Set();
+      availableOpen.set(key,offers.filter(a=>{if(seen.has(a.id))return false;seen.add(a.id);return true;}));
+    }
     for(const person of people){
       for(const day of DAYS){
         if(person.flags?.[day.i-1]!==true)continue;
         for(const half of HALVES){
           const cell=bucket(person.id,day.i,half.value);
-          if(cell.activities.length)continue;
+          if(cell.activities.length)continue; // Même « Temps libre » empêche une proposition.
           const offers=availableOpen.get(`${day.i}|${half.value}`)||[];
-          for(const offer of offers){
-            cell.activities.push(offer);
-            proposedOpen++;
-          }
+          if(!offers.length)continue;
+          const chosen=offers.slice(0,2);
+          cell.activities.push(...chosen);
+          proposedOpen+=chosen.length;
+          openSlots++;
+          hiddenOpenOffers+=Math.max(0,offers.length-chosen.length);
         }
       }
     }
     for(const entry of cells.values()){
       entry.activities.sort((a,b)=>a.sort-b.sort||a.name.localeCompare(b.name,'fr'));
     }
-    if(proposedOpen){notes.push(`${proposedOpen} proposition(s) de groupes ouverts affichée(s) pour des demi-journées sans inscription. Ces propositions ne sont pas des inscriptions confirmées.`);}
+    // Le nombre normal de propositions n'est pas un avertissement ; il est donné dans le statut.
+    if(hiddenOpenOffers)notes.push(`${hiddenOpenOffers} autres possibilités de groupes ouverts non affichées (deux propositions maximum par demi-journée, choisies par horaire de début).`);
 
     const rehabHasYear=state.columns.reeducations.includes('Annee');
     if(!rehabHasYear&&!isCurrent)errors.push('Reeducations.Annee absent : impossible de restituer les rendez-vous des années archivées.');
@@ -357,14 +371,14 @@
     const maxEntries=Math.max(0,...[...cells.values()].map(x=>x.activities.length));
     if(maxEntries>2){
       const hidden=[...cells.values()].reduce((n,c)=>n+Math.max(0,c.activities.length-2),0);
-      notes.push(`${hidden} activité(s) ou proposition(s) de groupe ouvert non affichée(s) : seules les 2 premières par demi-journée sont retenues (heure de début, puis nom).`);
+      notes.push(`${hidden} activité(s) inscrite(s) supplémentaires non affichée(s) : seules les 2 premières par demi-journée sont retenues (heure de début, puis nom).`);
     }
-    return {year,people,cells,errors,notes:unique(notes),activityCount,rehabCount,maxEntries};
+    return {year,people,cells,errors,notes:unique(notes),activityCount,rehabCount,maxEntries,openSlots,proposedOpen};
   }
   function renderEvent(event){
     const showStaff=!noStaff(event.name)&&!isFree(event.name)&&!!event.staff;
-    return `<div class="activity-item" title="${esc(event.name+(showStaff?' — '+event.staff:''))}">
-      <span class="activity-name">${esc(isFree(event.name)?'Temps libre':event.name)}${event.open?'<span class="open-tag"> (ouverte)</span>':''}</span>
+    return `<div class="activity-item" title="${esc(event.name+(showStaff?' — '+event.staff:'')+(event.open?' (groupe ouvert, inscription non confirmée)':''))}">
+      <span class="activity-name">${esc(isFree(event.name)?'Temps libre':event.name)}${event.open?'<span class="open-tag" aria-label="Activité ouverte proposée" title="Activité ouverte (non inscrite)"> ◇</span>':''}</span>
       ${showStaff?`<span class="activity-staff">${esc(event.staff)}</span>`:''}
     </div>`;
   }
@@ -373,8 +387,8 @@
     const b=state.model.cells.get(`${person.id}|${day.i}|${half.value}`)||{activities:[],rehab:[]};
     const acts=b.activities.slice(0,2).map(renderEvent).join('');
     const kine=b.rehab.map(e=>`<span class="rehab-entry" title="${esc(e.kind+' '+e.hour)}">${esc(e.hour)}</span>`).join('');
-    return `<td class="activities ${halfStart}"><div class="events">${acts}</div></td>
-      <td class="rehab" title="${esc(b.rehab.map(x=>x.kind+' '+x.hour).join(' / '))}">${kine}</td>`;
+    return `<td class="activities ${halfStart}" data-day="${esc(day.label)}" data-half="${esc(half.label)}"><div class="events">${acts}</div></td>
+      <td class="rehab" data-day="${esc(day.label)}" data-half="${esc(half.label)}" title="${esc(b.rehab.map(x=>x.kind+' '+x.hour).join(' / '))}">${kine}</td>`;
   }
   function render(){
     if(!state.loaded)return;
@@ -395,7 +409,7 @@
     const body=model.people.map((p,i)=>{
       let tds='';
       for(const d of DAYS){
-        if(p.flags?.[d.i-1]===false)tds+='<td class="absent day-start" colspan="4">Absent</td>';
+        if(p.flags?.[d.i-1]===false)tds+=`<td class="absent day-start" data-day="${esc(d.label)}" data-half="journée" colspan="4">Absent</td>`;
         else for(const h of HALVES)tds+=cellsFor(p,d,h);
       }
       return `<tr data-user="${p.id}" class="${p.id===state.userId?'selected':''}"><td class="identity number">${i+1}</td><td class="identity user" title="${esc(p.name)}">${esc(p.name)}</td>${tds}</tr>`;
@@ -411,7 +425,7 @@
     warnings([...model.errors,...model.notes]);
     const ok=model.people.length>0&&!model.errors.length;
     $('printBtn').disabled=!ok;$('pdfBtn').disabled=!ok;
-    show(`${model.people.length} usagers · ${model.activityCount} activités inscrites · ${model.rehabCount} rendez-vous kiné/ortho. ${ok?'Planning prêt à être vérifié et imprimé.':'Vérifier les problèmes signalés avant impression.'}`,!ok);
+    show(`${model.people.length} usagers · ${model.activityCount} activités inscrites · ${model.openSlots} créneaux avec proposition ouverte · ${model.rehabCount} rendez-vous kiné/ortho. ${ok?'Planning prêt à être vérifié et imprimé.':'Vérifier les problèmes signalés avant impression.'}`,!ok);
     fitScreen();
     calculatePrintFit();
   }
@@ -422,8 +436,8 @@
       const names=[...wrapper.querySelectorAll('.activity-name')];
       const staffs=[...wrapper.querySelectorAll('.activity-staff')];
       let factor=1;
-      while(wrapper.scrollHeight>wrapper.clientHeight+1 && factor>.70){
-        factor=Math.max(.70,+(factor-.04).toFixed(2));
+      while(wrapper.scrollHeight>wrapper.clientHeight+1 && factor>.65){
+        factor=Math.max(.65,+(factor-.03).toFixed(2));
         names.forEach(el=>el.style.fontSize=(6.65*factor).toFixed(2)+'pt');
         staffs.forEach(el=>el.style.fontSize=(5.25*factor).toFixed(2)+'pt');
       }
@@ -432,10 +446,31 @@
         const index=[...row.cells].indexOf(cell);
         const dayIndex=Math.floor((index-2)/4);
         const halfIndex=Math.floor(((index-2)%4)/2);
-        const day=DAYS[dayIndex]?.label||'jour inconnu';
-        const half=HALVES[halfIndex]?.label||'créneau inconnu';
+        const day=cell?.dataset.day||DAYS[dayIndex]?.label||'jour inconnu';
+        const half=cell?.dataset.half||HALVES[halfIndex]?.label||'créneau inconnu';
         const name=row.querySelector('td.user')?.textContent||'Usager inconnu';
         model.errors.push(`Contenu trop long pour une ligne de hauteur uniforme : ${name}, ${day} ${half}.`);
+      }
+    }
+    // Les noms longs (par ex. noms composés) peuvent déclencher un débordement
+    // même lorsque les activités tiennent correctement dans leurs cases.
+    for(const cell of $('tableHost').querySelectorAll('tbody td.user')){
+      let fontPt=8;
+      while(cell.scrollWidth>cell.clientWidth+2 && fontPt>6){
+        fontPt=+(fontPt-.2).toFixed(2);
+        cell.style.fontSize=fontPt+'pt';
+      }
+      if(cell.scrollWidth>cell.clientWidth+2){
+        model.errors.push(`Nom d'usager trop long pour la largeur prévue : ${cell.textContent}.`);
+      }
+    }
+    // Dans la colonne Kiné/Ortho, réduire très légèrement une heure atypique.
+    for(const cell of $('tableHost').querySelectorAll('tbody td.rehab')){
+      let fontPt=7;
+      while(cell.scrollWidth>cell.clientWidth+2 && fontPt>5.5){
+        fontPt=+(fontPt-.25).toFixed(2);
+        cell.style.fontSize=fontPt+'pt';
+        cell.querySelectorAll('.rehab-entry').forEach(el=>el.style.fontSize=fontPt+'pt');
       }
     }
   }
@@ -467,7 +502,9 @@
     const w=sheet.offsetWidth/pxPerMm;
     const fit=Math.min(1, 285.5/Math.max(h,1), 408.5/Math.max(w,1));
     document.documentElement.style.setProperty('--print-scale-a3',fit.toFixed(5));
-    document.documentElement.style.setProperty('--print-scale-a4',(fit*.695).toFixed(5));
+    // Marge de sécurité supplémentaire sur A4 : sinon la légende
+    // peut être rejetée sur une seconde page par Chromium.
+    document.documentElement.style.setProperty('--print-scale-a4',(fit*.660).toFixed(5));
     return fit;
   }
   function canPrint(){
@@ -482,14 +519,30 @@
     const problems=[];
     if(width*fit>410.6||height*fit>286.0)problems.push('Le tableau dépasse encore la page A3 après ajustement.');
     if(fit<.72)problems.push('Réduction excessive : impression peu lisible sur une feuille A3.');
-    // Détecter une activité ou un rendez-vous qui dépasse le contenu de sa ligne.
+    // Détecter exactement où le contenu dépasse, sans masquer l’information.
+    // La vérification des en-têtes se fait séparément afin de ne pas attribuer
+    // un débordement de titre à un usager.
     for(const row of table?.tBodies[0]?.rows||[]){
+      const name=row.querySelector('td.user')?.textContent?.trim()||'Usager inconnu';
       for(const cell of row.cells){
-        if(cell.scrollHeight>cell.clientHeight+2||cell.scrollWidth>cell.clientWidth+2){
-          problems.push('Au moins une case est trop petite pour tout son contenu.');break;
+        // Le débordement d'une <td> peut être un simple arrondi de la grille
+        // (largeurs des bordures). Mesurer le contenu réellement imprimable,
+        // plutôt que les dimensions intrinsèques de la cellule.
+        const content=cell.querySelector('.events') || cell;
+        const dh=content.scrollHeight-content.clientHeight;
+        const dw=content.scrollWidth-content.clientWidth;
+        const isEvents=content!==cell;
+        const genuine=isEvents ? dh>2 : (cell.classList.contains('user')||cell.classList.contains('rehab'))&&(dh>3||dw>3);
+        if(genuine){
+          const location=cell.dataset.day
+            ? `${cell.dataset.day} ${cell.dataset.half} — ${cell.classList.contains('rehab')?'Kiné/Ortho':'Activités'}`
+            :cell.classList.contains('user')?'nom de l’usager':'colonne N°';
+          const axis=[dh>2?`hauteur +${Math.ceil(dh)} px`:'',dw>2?`largeur +${Math.ceil(dw)} px`:''].filter(Boolean).join(', ');
+          problems.push(`Texte débordant : ${name}, ${location} (${axis}).`);
+          if(problems.length>=4)break;
         }
       }
-      if(problems.length)break;
+      if(problems.length>=4)break;
     }
     document.documentElement.style.setProperty('--screen-scale',before||'1');
     if(problems.length){warnings([...state.model.errors,...state.model.notes,...problems]);show('Impression suspendue : '+problems.join(' '),true);return false;}
