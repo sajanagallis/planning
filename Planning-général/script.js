@@ -1,5 +1,5 @@
 /*
- * Planning général SAJ Anagallis V9.1 — bordures uniformes et début de RDV — lecture seule, données Grist.
+ * Planning général SAJ Anagallis V9.2 — bordures uniformes et début de RDV — lecture seule, données Grist.
  * Une grande case « Activités » par usager et demi-journée ; les deux
  * premières activités inscrites, ou proposées en groupe ouvert si la demi-journée
  * est libre, y sont listées. Autre colonne : Kiné/Ortho.
