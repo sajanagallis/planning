@@ -1,5 +1,5 @@
 /*
- * Planning général SAJ Anagallis V10 — 7 catégories pastel, capsules sans changement de hauteur — lecture seule, données Grist.
+ * Planning général SAJ Anagallis V9 — groupes ouverts et impression fiabilisée — lecture seule, données Grist.
  * Une grande case « Activités » par usager et demi-journée ; les deux
  * premières activités inscrites, ou proposées en groupe ouvert si la demi-journée
  * est libre, y sont listées. Autre colonne : Kiné/Ortho.
@@ -25,39 +25,6 @@
   ];
   const HALVES = [{value:'matin',label:'Matin'},{value:'apres-midi',label:'Après-midi'}];
   const CUTOFF=12*60+30;
-  // Catégories éducatives : une seule catégorie principale dans Activites.Type_activite.
-  // Ces noms doivent être recopiés tels quels dans une colonne Grist de type « Choix ».
-  const CATEGORIES = Object.freeze([
-    {id:'sport',label:'Activités physiques et sportives',short:'Sport'},
-    {id:'wellness',label:'Bien-être et sensoriel',short:'Bien-être'},
-    {id:'art',label:'Artistique et expression',short:'Artistique'},
-    {id:'manual',label:'Manuel et créatif',short:'Manuel'},
-    {id:'culture',label:'Culturel et cognitif',short:'Culture'},
-    {id:'social',label:'Communication et socialisation',short:'Communication'},
-    {id:'autonomy',label:'Autonomie, accessibilité et vie quotidienne',short:'Autonomie'}
-  ]);
-  // Regrouper les libellés connus afin d'afficher une couleur même pendant la
-  // migration de Grist. Ce classement provisoire n'écrit RIEN dans Grist.
-  // Dès que Type_activite est renseigné, son choix est prioritaire.
-  const DEFAULT_ACTIVITY_TYPES = [
-    ['sport',/^(?:rugby fauteuil|piscine cem|boccia|escrime|bouge ton boule|gym douce|tir a l arc|sport\b|activites physiques)/],
-    ['wellness',/^(?:yoga|sons et vibrations|snoezelen|mobirelax|mediation animale|esthetique|musicotherapie)/],
-    ['art',/^(?:corps et voix|chorale|chant\b|theatre|art therapie|art therapi|musique\b|photo\b)/],
-    ['manual',/^(?:cuisine|atelier bois|bricolage|brico crea|mosaique|deco saj|a vos pinceaux|atelier creatif)/],
-    ['culture',/^(?:cine club|sorties? culturelles?|actualites|jeux de societe|contes?\b|informatique)/],
-    ['social',/^(?:comm unique|interactions? sociales?|nul bar ailleurs|groupe parole|repas des anciens travailleurs)/],
-    ['autonomy',/^(?:mission autonomie|roule ma poule|courses?\b|autour de l argent)/]
-  ];
-  const TYPE_ALIASES = Object.freeze({
-    sport:['sport','sportif','activites sportives','activites physiques','activites physiques et sportives'],
-    wellness:['bien etre','bien etre et sensoriel','sensoriel','bien etre sensoriel'],
-    art:['artistique','artistique et expression','expression','art'],
-    manual:['manuel','activites manuelles','manuel et creatif','activites manuelles et creatives','creatif'],
-    culture:['culture','culturel','culturel et cognitif','cognitif','activites culturelles et cognitives'],
-    social:['social','communication','socialisation','communication et socialisation'],
-    autonomy:['autonomie','accessibilite','vie quotidienne','autonomie accessibilite et vie quotidienne']
-  });
-
   const state={raw:{},byId:{},columns:{},existing:[],yearId:null,currentYearId:null,userId:null,
     loaded:false,loading:false,paper:'a3',model:null,refreshTimer:null};
   const $=id=>document.getElementById(id);
@@ -134,27 +101,6 @@
   const isReference=s=>/\btemps (?:de )?(?:reference|referent|ref)\b/.test(norm(s)); // ignorés dans cette version
   const isRehab=s=>/\bkine\b|\bkinesitherap|\bortho\b|orthophon/.test(norm(s));
   const noStaff=s=>norm(s)==='accueil'; // Nul Bar ailleurs : afficher les salariés comme toutes les activités.
-  // Identifiant strict parmi les sept valeurs autorisées (aucun style injecté
-  // depuis les données Grist). Les activités particulières ont leur propre couleur.
-  function categoryFor(a){
-    const name=norm(a.Nom_activite);
-    if(isFree(a.Nom_activite))return {id:'free',origin:'special'};
-    if(name==='accueil')return {id:'welcome',origin:'special'};
-    const chosen=text(a.Type_activite);
-    if(chosen){
-      const choice=norm(chosen);
-      for(const c of CATEGORIES){
-        const variants=[norm(c.label),...(TYPE_ALIASES[c.id]||[]).map(norm)];
-        if(variants.includes(choice))return {id:c.id,origin:'grist'};
-      }
-      return {id:'unclassified',origin:'invalid',input:chosen};
-    }
-    for(const [id,pattern] of DEFAULT_ACTIVITY_TYPES){
-      if(pattern.test(name))return {id,origin:'provisional'};
-    }
-    return {id:'unclassified',origin:'missing'};
-  }
-
   // Le statut est utilisé uniquement pour la FORME du nom, jamais pour la couleur.
   // Choices réelles de Grist : « Salarié⋅e SAJ », « Salarié⋅e LTC »,
   // « Salarié⋅e Odynéo », « Intervenant⋅e », « Bénévole ».
@@ -313,12 +259,6 @@
     }
     if(!people.length)errors.push('Aucun usager pour cette année.');
     const animatorByName=staffDirectory(state.raw.animators);
-    const cachedCategory=new Map();
-    function getCategory(a){
-      if(!cachedCategory.has(a.id))cachedCategory.set(a.id,{name:text(a.Nom_activite),...categoryFor(a)});
-      return cachedCategory.get(a.id).id;
-    }
-
     const cells=new Map();
     const openActivities=[];
     function bucket(userId,day,half){const key=`${userId}|${day}|${half}`;if(!cells.has(key))cells.set(key,{activities:[],rehab:[]});return cells.get(key);}
@@ -336,7 +276,7 @@
       const specialFree=isFree(a.Nom_activite),specialRef=isReference(a.Nom_activite);
       if(specialRef)continue; // Colonnes et activités « Temps de référence » supprimées.
       const staff=specialFree?'':staffFor(a,animatorByName,notes);
-      const item={id:actId,name:text(a.Nom_activite)||'Activité',sort:Number.isFinite(minutes(start))?minutes(start):9999,staff,open:false,category:getCategory(a)};
+      const item={id:actId,name:text(a.Nom_activite)||'Activité',sort:Number.isFinite(minutes(start))?minutes(start):9999,staff,open:false};
       for(const userId of participants){
         if(!peopleById.has(userId)){notes.push(`Participant ${userId} introuvable pour ${item.name}.`);continue;}
         const entry=bucket(userId,day,half);
@@ -361,7 +301,7 @@
       if(isReference(a.Nom_activite))continue;
       const staff=isFree(a.Nom_activite)?'':staffFor(a,animatorByName,notes);
       openActivities.push({id:a.id,day,half,name:text(a.Nom_activite)||'Activité ouverte',
-        sort:Number.isFinite(minutes(start))?minutes(start):9999,staff,open:true,category:getCategory(a)});
+        sort:Number.isFinite(minutes(start))?minutes(start):9999,staff,open:true});
     }
     // Un groupe ouvert n'est JAMAIS une inscription. Il est proposé seulement
     // aux usagers présents dont la demi-journée n'a aucune activité inscrite.
@@ -428,17 +368,6 @@
         }
       }
     }}
-    // Les activités sans catégorie restent visibles. Indiquer ce qui reste à
-    // remplir dans Grist, sans bloquer l'impression ni provoquer 50 alertes.
-    if(!state.columns.activities.includes('Type_activite'))
-      notes.push('Colonne Activites.Type_activite absente : ajoutez-la dans Grist (type Choix, sept catégories) pour fixer définitivement les couleurs.');
-    const provisoires=[...cachedCategory.values()].filter(x=>x.origin==='provisional');
-    const inconnues=[...cachedCategory.values()].filter(x=>x.origin==='missing'||x.origin==='invalid');
-    if(provisoires.length)notes.push(`${provisoires.length} activité(s) classée(s) provisoirement par leur nom : renseignez Type_activite dans Grist pour confirmer.`);
-    if(inconnues.length){
-      const exemples=inconnues.slice(0,9).map(x=>x.name||'Sans nom').join(' ; ');
-      notes.push(`${inconnues.length} activité(s) sans catégorie reconnue (gris neutre) : ${exemples}${inconnues.length>9?' …':''}.`);
-    }
     const maxEntries=Math.max(0,...[...cells.values()].map(x=>x.activities.length));
     if(maxEntries>2){
       const hidden=[...cells.values()].reduce((n,c)=>n+Math.max(0,c.activities.length-2),0);
@@ -448,12 +377,8 @@
   }
   function renderEvent(event){
     const showStaff=!noStaff(event.name)&&!isFree(event.name)&&!!event.staff;
-    // La capsule reste un <span> en ligne, sans padding vertical ni bordure
-    // physique : ne peut donc augmenter la hauteur de la ligne du tableau.
-    const category=CATEGORIES.some(x=>x.id===event.category)||['free','welcome'].includes(event.category)
-      ?event.category:'unclassified';
     return `<div class="activity-item" title="${esc(event.name+(showStaff?' — '+event.staff:'')+(event.open?' (groupe ouvert, inscription non confirmée)':''))}">
-      <span class="activity-name"><span class="activity-highlight cat-${category}">${esc(isFree(event.name)?'Temps libre':event.name)}</span>${event.open?'<span class="open-tag" aria-label="Activité ouverte proposée" title="Activité ouverte (non inscrite)"> ◇</span>':''}</span>
+      <span class="activity-name">${esc(isFree(event.name)?'Temps libre':event.name)}${event.open?'<span class="open-tag" aria-label="Activité ouverte proposée" title="Activité ouverte (non inscrite)"> ◇</span>':''}</span>
       ${showStaff?`<span class="activity-staff">${esc(event.staff)}</span>`:''}
     </div>`;
   }
