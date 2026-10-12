@@ -1276,7 +1276,7 @@ async function renderDay(
           <div class="empty-slot">
             ${
               present
-                ? 'Aucune activité renseignée'
+                ? 'Aucune activité'
                 : 'Absent'
             }
           </div>
