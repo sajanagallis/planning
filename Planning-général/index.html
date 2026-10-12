@@ -3,11 +3,11 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Planning général — SAJ Anagallis (V9.7)</title>
-  <meta name="widget-version" content="9.7">
-  <link rel="stylesheet" href="style.css?v=9.7">
+  <title>Planning général — SAJ Anagallis (V9.7 — correction HTML)</title>
+  <meta name="widget-version" content="9.7.1">
+  <link rel="stylesheet" href="style.css?v=9.7.1">
   <script defer src="https://docs.getgrist.com/grist-plugin-api.js"></script>
-  <script defer src="script.js?v=9.7"></script>
+  <script defer src="script.js?v=9.7.1"></script>
 </head>
 <body>
   <main id="app">
@@ -62,3 +62,14 @@
       <div class="participants-popover-titles">
         <strong id="participantsTitle"></strong>
         <span id="participantsMeta"></span>
+      </div>
+      <button id="participantsClose" type="button" class="participants-popover-close"
+        aria-label="Fermer la liste des participants">×</button>
+    </div>
+    <p id="participantsCount" class="participants-popover-count"></p>
+    <p id="participantsImagesNote" class="participants-images-note" hidden></p>
+    <p id="participantsContext" class="participants-popover-context" hidden></p>
+    <ol id="participantsList" class="participants-popover-list"></ol>
+  </aside>
+</body>
+</html>
