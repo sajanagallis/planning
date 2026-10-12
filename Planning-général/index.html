@@ -3,11 +3,11 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Planning général — SAJ Anagallis (V9.7.4 — impression PDF sur une page)</title>
-  <meta name="widget-version" content="9.7.4">
-  <link rel="stylesheet" href="style.css?v=9.7.4-20261012">
+  <title>Planning général — SAJ Anagallis (V9.6)</title>
+  <meta name="widget-version" content="9.6">
+  <link rel="stylesheet" href="style.css?v=9.6">
   <script defer src="https://docs.getgrist.com/grist-plugin-api.js"></script>
-  <script defer src="script.js?v=9.7.4-20261012"></script>
+  <script defer src="script.js?v=9.6"></script>
 </head>
 <body>
   <main id="app">
@@ -25,7 +25,7 @@
     <div class="messages no-print" aria-live="polite">
       <p id="status">Connexion à Grist…</p>
       <p id="selectionNote" hidden aria-live="polite"></p>
-      <p id="paperNote">A3 recommandé. Le bouton « Créer un PDF » télécharge directement un fichier PDF ; « Imprimer » ouvre un PDF d’une page prêt à imprimer.</p>
+      <p id="paperNote">A3 recommandé. Le bouton « Créer un PDF » télécharge directement un fichier PDF ; « Imprimer » ouvre la fenêtre d’impression.</p>
       <details id="warningDetails" hidden><summary id="warningSummary">Avertissements</summary><ul id="warnings"></ul></details>
     </div>
 
@@ -58,7 +58,7 @@
     aria-modal="false" aria-labelledby="participantsTitle" aria-describedby="participantsMeta"
     tabindex="-1" hidden>
     <div class="participants-popover-heading">
-      <div id="participantsPicto" class="participants-popover-icon" aria-label="Pictogramme de l’activité" role="img"><span class="participants-picto-fallback" aria-hidden="true">▦</span></div>
+      <div class="participants-popover-icon" aria-hidden="true">●</div>
       <div class="participants-popover-titles">
         <strong id="participantsTitle"></strong>
         <span id="participantsMeta"></span>
@@ -67,7 +67,6 @@
         aria-label="Fermer la liste des participants">×</button>
     </div>
     <p id="participantsCount" class="participants-popover-count"></p>
-    <p id="participantsImagesNote" class="participants-images-note" hidden></p>
     <p id="participantsContext" class="participants-popover-context" hidden></p>
     <ol id="participantsList" class="participants-popover-list"></ol>
   </aside>

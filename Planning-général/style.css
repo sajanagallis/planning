@@ -95,17 +95,20 @@ button.secondary{color:#173b63;background:white}button:disabled{opacity:.45;curs
 .planning tbody td.user,.planning tbody td.number{cursor:pointer}
 .planning .activity-item{cursor:pointer}
 .planning .activity-item:focus-visible,.planning td.user:focus-visible{outline:2px solid #1b66cc;outline-offset:-2px}
-.planning tbody tr.selected-person td:not(.absent):not(.rehab){background:#ffe49a!important}
-.planning tbody tr.selected-activity td.user{background:#ffe49a!important}
+.planning tbody tr.selected-person td:not(.absent):not(.rehab),
+.planning tbody tr.selected-activity td:not(.absent):not(.rehab){background:#ffe49a!important}
 /* Les cases Kiné/Ortho et Absent gardent leurs couleurs respectives. */
-.planning tbody tr.selected-person td{
+.planning tbody tr.selected-person td,
+.planning tbody tr.selected-activity td{
   box-shadow:inset 0 2px 0 #a97500,inset 0 -2px 0 #a97500!important;
 }
 /* Renfort visible au début et à la fin de chaque ligne sélectionnée. */
-.planning tbody tr.selected-person td:first-child{
+.planning tbody tr.selected-person td:first-child,
+.planning tbody tr.selected-activity td:first-child{
   box-shadow:inset 2px 0 0 #a97500,inset 0 2px 0 #a97500,inset 0 -2px 0 #a97500!important;
 }
-.planning tbody tr.selected-person td:last-child{
+.planning tbody tr.selected-person td:last-child,
+.planning tbody tr.selected-activity td:last-child{
   box-shadow:inset -2px 0 0 #a97500,inset 0 2px 0 #a97500,inset 0 -2px 0 #a97500!important;
 }
 /* Seule la case de l'activité cliquée est repérée plus fortement. */
@@ -122,13 +125,11 @@ button.secondary{color:#173b63;background:white}button:disabled{opacity:.45;curs
 .date-meta{white-space:nowrap;display:flex;gap:2mm;flex-direction:column;text-align:right}
 @page{size:A3 landscape;margin:5mm}
 @media print{
-  html,body{margin:0!important;padding:0!important;width:100%!important;height:100%!important;background:white!important;overflow:visible!important;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
+  html,body{margin:0!important;padding:0!important;width:var(--print-width)!important;height:var(--print-height)!important;background:white!important;overflow:hidden!important;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
   .no-print{display:none!important}
-  .viewport{margin:0!important;padding:0!important;overflow:visible!important;width:100%!important}
-  /* Position fixe + transformation géométrique : évite la fragmentation du tableau
-     en deux pages observée avec zoom et position:absolute. */
-  .sheet{position:fixed!important;top:0!important;left:0!important;margin:0!important;box-shadow:none!important;width:410mm!important;zoom:1!important;transform:scale(var(--print-scale-a3))!important;transform-origin:top left!important;overflow:visible!important;break-inside:avoid!important;page-break-inside:avoid!important}
-  body.paper-a4 .sheet{transform:scale(var(--print-scale-a4))!important}
+  .viewport{margin:0!important;padding:0!important;width:auto!important;overflow:visible!important}
+  .sheet{margin:0!important;position:absolute!important;top:0!important;left:0!important;box-shadow:none!important;width:410mm!important;zoom:var(--print-scale-a3)!important;overflow:visible!important}
+  body.paper-a4 .sheet{zoom:var(--print-scale-a4)!important}
   *{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
 }
 
@@ -166,19 +167,3 @@ button.secondary{color:#173b63;background:white}button:disabled{opacity:.45;curs
   .participants-popover-empty{padding:7px 3px;color:#52647c;font-size:12px}
 }
 @media print{#participantsPopover{display:none!important}}
-
-/* V9.7.2 — Portraits et pictogrammes : exclusivement dans la fenêtre flottante. */
-@media screen {
-  .participants-popover-icon{width:42px;height:42px;flex-basis:42px;overflow:hidden}
-  .participants-popover-icon img{display:block;width:100%;height:100%;object-fit:contain}
-  .participants-popover-list{list-style:none}
-  .participants-popover-list li{display:flex;align-items:center;gap:8px;min-height:40px;padding:4px 8px}
-  .participant-portrait{display:flex;align-items:center;justify-content:center;flex:0 0 34px;width:34px;height:34px;
-    overflow:hidden;border-radius:6px;background:#e3eaf4;color:#27416b;font-weight:bold}
-  .participant-portrait img{display:block;width:100%;height:100%;object-fit:cover}
-  .participants-image-fallback{display:flex;align-items:center;justify-content:center;width:100%;height:100%}
-  .participant-fullname{min-width:0;flex:1;overflow-wrap:anywhere}
-  .participants-images-note{margin:0 0 4px;font-size:10px;color:#6b5360}
-  .planning tbody tr.selected-activity td.user{box-shadow:inset 0 0 0 2px #b88100!important;font-weight:bold}
-  .planning tbody tr.selected-activity .activity-item.matching-activity{box-shadow:inset 0 0 0 1.5px #ac7505;background:#ffe49a!important}
-}
