@@ -3,11 +3,11 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Planning général — SAJ Anagallis (V9.6)</title>
-  <meta name="widget-version" content="9.6">
-  <link rel="stylesheet" href="style.css?v=9.6">
+  <title>Planning général — SAJ Anagallis (V9.7)</title>
+  <meta name="widget-version" content="9.7">
+  <link rel="stylesheet" href="style.css?v=9.7">
   <script defer src="https://docs.getgrist.com/grist-plugin-api.js"></script>
-  <script defer src="script.js?v=9.6"></script>
+  <script defer src="script.js?v=9.7"></script>
 </head>
 <body>
   <main id="app">
@@ -58,17 +58,7 @@
     aria-modal="false" aria-labelledby="participantsTitle" aria-describedby="participantsMeta"
     tabindex="-1" hidden>
     <div class="participants-popover-heading">
-      <div class="participants-popover-icon" aria-hidden="true">●</div>
+      <div id="participantsPicto" class="participants-popover-icon" aria-label="Pictogramme de l’activité" role="img"><span class="participants-picto-fallback" aria-hidden="true">▦</span></div>
       <div class="participants-popover-titles">
         <strong id="participantsTitle"></strong>
         <span id="participantsMeta"></span>
-      </div>
-      <button id="participantsClose" type="button" class="participants-popover-close"
-        aria-label="Fermer la liste des participants">×</button>
-    </div>
-    <p id="participantsCount" class="participants-popover-count"></p>
-    <p id="participantsContext" class="participants-popover-context" hidden></p>
-    <ol id="participantsList" class="participants-popover-list"></ol>
-  </aside>
-</body>
-</html>

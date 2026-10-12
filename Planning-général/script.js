@@ -1,5 +1,5 @@
 /*
- * Planning général SAJ Anagallis V9.6 — sélection usager / participants d’activité, PDF direct — lecture seule, données Grist.
+ * Planning général SAJ Anagallis V9.7 — sélection usager / participants d’activité, PDF direct — lecture seule, données Grist.
  * Une grande case « Activités » par usager et demi-journée ; les deux
  * premières activités inscrites, ou proposées en groupe ouvert si la demi-journée
  * est libre, y sont listées. Autre colonne : Kiné/Ortho.
@@ -26,7 +26,7 @@
   const HALVES = [{value:'matin',label:'Matin'},{value:'apres-midi',label:'Après-midi'}];
   const CUTOFF=12*60+30;
   const state={raw:{},byId:{},columns:{},existing:[],yearId:null,currentYearId:null,userId:null,
-    activitySelection:null,selectionMessage:"",popoverAnchor:null,loaded:false,loading:false,paper:'a3',model:null,refreshTimer:null};
+    activitySelection:null,selectionMessage:"",popoverAnchor:null,imageRequestId:0,loaded:false,loading:false,paper:'a3',model:null,refreshTimer:null};
   const $=id=>document.getElementById(id);
   const text=v=>v==null?'':String(v).trim();
   const esc=v=>text(v).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
@@ -53,6 +53,75 @@
     }
     const s=text(v);
     return s&&!/^\[?\s*[Ll]?,?\s*\d+(?:,\s*\d+)*\s*\]?$/.test(s)?[s]:[];
+  }
+  // Photos/pictogrammes : le schéma réel du SAJ possède Activites.Visuel
+  // et Usagers.Portrait, tous deux de type Grist Attachments.
+  // Les variantes rendent le widget robuste à d'éventuels renommages.
+  const ACTIVITY_IMAGE_FIELDS=['Visuel','Picto','Pictogramme','Icône','Icone','Image','Illustration','Photo','Logo','Image_URL','Url_image','Picto_URL','Icone_URL'];
+  const USER_IMAGE_FIELDS=['Portrait','Photo','Photo_usager','Photographie','Image','Visuel'];
+  function imageSource(record,fields){
+    if(!record)return null;
+    for(const field of fields){
+      const val=record[field];
+      const ids=refs(val);
+      if(ids.length)return {kind:'attachment',id:ids[0],field};
+      const str=text(val);
+      // N'utiliser que des URL explicites sûres ; ne pas transformer des
+      // chemins relatifs en liens publics ou en URL tierces imprévues.
+      if(/^https:\/\/[^\s<>"']+$/i.test(str))return {kind:'url',url:str,field};
+    }
+    return null;
+  }
+  function imageTag(source, fallback, alt){
+    const holder=document.createElement('span');
+    holder.className='participants-image-fallback';
+    holder.textContent=fallback;
+    if(alt)holder.title=alt;
+    return holder;
+  }
+  function initials(person){
+    const parts=[text(person?.first),text(person?.last)].filter(Boolean);
+    return parts.map(s=>s.charAt(0)).join('').toUpperCase()||'•';
+  }
+  function authorizedAttachmentUrl(source,info){
+    if(!source || source.kind!=='attachment'||!info?.baseUrl||!info?.token)return null;
+    // URL documentée par Grist : jeton de lecture, obtenu seulement au clic.
+    // Jamais d'identifiant utilisateur / de clé stocké dans GitHub.
+    return String(info.baseUrl).replace(/\/$/,'')+'/attachments/'+encodeURIComponent(source.id)+
+      '/download?auth='+encodeURIComponent(info.token);
+  }
+  async function loadPopoverPictures(pictures,requestId){
+    if(!pictures.length)return;
+    let tokenInfo=null;
+    if(pictures.some(p=>p.source?.kind==='attachment')){
+      try{
+        tokenInfo=await grist.docApi.getAccessToken({readOnly:true});
+      }catch(error){
+        // Le widget reste utilisable même sans accès aux pièces jointes.
+        console.warn('Photos Grist indisponibles :',error);
+        if(state.imageRequestId===requestId){
+          const note=$('participantsImagesNote');
+          if(note){note.textContent='Images non accessibles (autorisation Grist).';note.hidden=false;}
+        }
+      }
+    }
+    if(state.imageRequestId!==requestId||$('participantsPopover').hidden)return;
+    for(const {source,holder,alt} of pictures){
+      const url=source?.kind==='url'?source.url:authorizedAttachmentUrl(source,tokenInfo);
+      if(!url||!holder.isConnected)continue;
+      const img=document.createElement('img');
+      img.alt=alt;img.loading='eager';img.decoding='async';img.referrerPolicy='no-referrer';
+      img.addEventListener('load',()=>{
+        if(state.imageRequestId!==requestId||!holder.isConnected)return;
+        holder.replaceChildren(img);holder.classList.add('has-photo');
+        positionParticipantsPopover();
+      },{once:true});
+      img.addEventListener('error',()=>{
+        // Conserver le repli en initiales si pièce jointe non image ou manquante.
+        img.remove();
+      },{once:true});
+      img.src=url;
+    }
   }
   function rowsFrom(data){
     return Array.isArray(data?.id)?data.id.map((id,i)=>{
@@ -394,7 +463,7 @@
     // sélectionne QUE les inscriptions confirmées du même jour et créneau.
     // La case peut contenir deux activités : elles restent indépendantes.
     return `<div class="activity-item" role="button" tabindex="0" aria-pressed="false"
-      data-activity-name="${esc(norm(event.name))}" data-open="${event.open?'1':'0'}"
+      data-activity-name="${esc(norm(event.name))}" data-activity-id="${Number(event.id)||0}" data-open="${event.open?'1':'0'}"
       aria-label="${esc(event.open?'Groupe ouvert proposé : '+event.name:'Afficher les participants inscrits à '+event.name)}"
       title="${esc(event.name+(showStaff?' — '+event.staff:'')+(event.open?' (groupe ouvert, inscription non confirmée)':''))}">
       <span class="activity-name">${esc(isFree(event.name)?'Temps libre':event.name)}${event.open?'<span class="open-tag" aria-label="Activité ouverte proposée" title="Activité ouverte (non inscrite)"> ◇</span>':''}</span>
@@ -463,7 +532,7 @@
       // participation effective au créneau choisi.
       if(person.flags?.[selection.day-1]!==true)continue;
       const cell=state.model.cells.get(`${person.id}|${selection.day}|${selection.half}`);
-      if(cell?.activities.some(a=>!a.open&&norm(a.name)===selection.name))people.add(person.id);
+      if(cell?.activities.some(a=>!a.open&&(selection.id?Number(a.id)===selection.id:norm(a.name)===selection.name)))people.add(person.id);
     }
     return people;
   }
@@ -497,7 +566,7 @@
       row.querySelectorAll('.activity-item').forEach(item=>{
         const td=item.closest('td.activities');
         const hit=!!selected&&matchActivity&&item.dataset.open==='0'&&
-          item.dataset.activityName===selected.name&&
+          (selected.id?Number(item.dataset.activityId)===selected.id:item.dataset.activityName===selected.name)&&
           Number(td?.dataset.dayIndex)===selected.day&&td?.dataset.halfValue===selected.half;
         item.classList.toggle('matching-activity',hit);
         item.setAttribute('aria-pressed',String(hit));
@@ -507,6 +576,8 @@
   // Petite fiche lisible : position fixe HORS du tableau et hors du PDF.
   // Les coordonnées sont mesurées après le zoom écran de la V9.5.
   function hideParticipantsPopover(){
+    // Invalider tout chargement asynchrone d'image lancé sur la fiche précédente.
+    state.imageRequestId++;
     state.popoverAnchor=null;
     const box=$('participantsPopover');
     if(box)box.hidden=true;
@@ -547,6 +618,13 @@
     const context=$('participantsContext');
     context.hidden=!open;
     context.textContent=open?'Groupe ouvert proposé à cet usager : il ne s’agit pas d’une inscription confirmée.':'';
+    const note=$('participantsImagesNote');note.hidden=true;note.textContent='';
+    const pictures=[];
+    const picto=$('participantsPicto');
+    picto.replaceChildren(imageTag(null,'▦','Pictogramme indisponible'));
+    const activity=state.byId.activities.get(Number(selection.id));
+    const activityImage=imageSource(activity,ACTIVITY_IMAGE_FIELDS);
+    if(activityImage){pictures.push({source:activityImage,holder:picto,alt:'Pictogramme : '+selection.display});}
     const list=$('participantsList');list.replaceChildren();
     if(!people.length){
       const li=document.createElement('li');li.className='participants-popover-empty';
@@ -554,13 +632,23 @@
       list.append(li);
     }else for(const person of people){
       const li=document.createElement('li');
-      li.textContent=person.name; // textContent protège les données Grist.
+      const photo=document.createElement('span');
+      photo.className='participant-portrait';
+      photo.append(imageTag(null,initials(person),'Photo indisponible'));
+      const name=document.createElement('span');name.className='participant-fullname';
+      name.textContent=person.name; // jamais de contenu HTML provenant de Grist
+      li.append(photo,name);
       li.classList.toggle('is-origin',person.id===originId);
       list.append(li);
+      const source=imageSource(person.source,USER_IMAGE_FIELDS);
+      if(source)pictures.push({source,holder:photo,alt:'Portrait de '+person.name});
     }
     state.popoverAnchor=item;
     box.hidden=false;
     positionParticipantsPopover();
+    // Le jeton à durée limitée n'est demandé qu'après interaction explicite.
+    const requestId=++state.imageRequestId;
+    void loadPopoverPictures(pictures,requestId);
   }
   function clearHighlights(){
     hideParticipantsPopover();
@@ -582,13 +670,14 @@
     const day=Number(cell.dataset.dayIndex),half=cell.dataset.halfValue;
     if(!name||!day||!half)return;
     // Recliquer sur la même activité ferme la liste et annule le surlignage.
-    const same=state.activitySelection?.name===name &&
+    const id=Number(item.dataset.activityId)||0;
+    const same=state.activitySelection?.name===name && state.activitySelection?.id===id &&
       state.activitySelection?.day===day && state.activitySelection?.half===half &&
       state.popoverAnchor===item;
     hideParticipantsPopover();
     state.userId=null;state.selectionMessage='';
     if(same){state.activitySelection=null;applyHighlights();return;}
-    state.activitySelection={name,day,half,display:item.querySelector('.activity-name')?.textContent.replace(/◇/g,'').trim()||name};
+    state.activitySelection={id,name,day,half,display:item.querySelector('.activity-name')?.textContent.replace(/◇/g,'').trim()||name};
     // Même si le libellé est proposé au titre d'un groupe ouvert, seules les
     // inscriptions CONFIRMÉES comptent dans la liste et le surlignage.
     applyHighlights();
