@@ -1,5 +1,5 @@
 /*
- * Planning général SAJ Anagallis V9.6 — sélection usager / participants d’activité, PDF direct — lecture seule, données Grist.
+ * Planning général SAJ Anagallis V9.6.1 — sélection usager / participants d’activité, PDF direct — lecture seule, données Grist.
  * Une grande case « Activités » par usager et demi-journée ; les deux
  * premières activités inscrites, ou proposées en groupe ouvert si la demi-journée
  * est libre, y sont listées. Autre colonne : Kiné/Ortho.
@@ -26,7 +26,7 @@
   const HALVES = [{value:'matin',label:'Matin'},{value:'apres-midi',label:'Après-midi'}];
   const CUTOFF=12*60+30;
   const state={raw:{},byId:{},columns:{},existing:[],yearId:null,currentYearId:null,userId:null,
-    activitySelection:null,selectionMessage:"",popoverAnchor:null,loaded:false,loading:false,paper:'a3',model:null,refreshTimer:null};
+    activitySelection:null,selectionMessage:"",popoverAnchor:null,imageRequestId:0,loaded:false,loading:false,paper:'a3',model:null,refreshTimer:null};
   const $=id=>document.getElementById(id);
   const text=v=>v==null?'':String(v).trim();
   const esc=v=>text(v).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
@@ -53,6 +53,55 @@
     }
     const s=text(v);
     return s&&!/^\[?\s*[Ll]?,?\s*\d+(?:,\s*\d+)*\s*\]?$/.test(s)?[s]:[];
+  }
+  // Colonnes exactes du document Grist : Usagers.Portrait et Activites.Visuel.
+  // Toutes deux sont des colonnes Attachments et contiennent des références
+  // de pièces jointes. Les fichiers demeurent dans Grist, jamais sur GitHub.
+  function firstAttachment(record,field){
+    return refs(record?.[field])[0]||null;
+  }
+  function initials(person){
+    return [text(person.first),text(person.last)].filter(Boolean)
+      .map(v=>v[0].toUpperCase()).join('')||'•';
+  }
+  // Grist fournit une URL de document et un jeton temporaire en lecture seule.
+  // Les URL n'ont pas vocation à être persistées ou imprimées.
+  function attachmentUrl(tokenInfo,id){
+    if(!tokenInfo?.baseUrl||!tokenInfo?.token||!Number.isInteger(id)||id<=0)return '';
+    return String(tokenInfo.baseUrl).replace(/\/$/,'')+
+      '/attachments/'+id+'/download?auth='+encodeURIComponent(tokenInfo.token);
+  }
+  async function attachPopupImages(images,requestId){
+    if(!images.length)return;
+    let token;
+    try{token=await grist.docApi.getAccessToken({readOnly:true});}
+    catch(e){
+      console.warn('Images jointes Grist inaccessibles:',e?.message||e);
+      if(state.imageRequestId===requestId){
+        const notice=$('participantsImagesNote');
+        if(notice){notice.textContent='Photos et pictogramme non accessibles avec les autorisations actuelles.';notice.hidden=false;}
+      }
+      return;
+    }
+    if(state.imageRequestId!==requestId||$('participantsPopover')?.hidden)return;
+    for(const {holder,id,alt} of images){
+      if(!holder.isConnected)continue;
+      const url=attachmentUrl(token,id);
+      if(!url)continue;
+      const image=document.createElement('img');
+      image.alt=alt;
+      image.decoding='async';
+      image.loading='eager';
+      image.referrerPolicy='no-referrer';
+      image.addEventListener('load',()=>{
+        if(state.imageRequestId!==requestId||!holder.isConnected)return;
+        holder.replaceChildren(image);
+        holder.classList.add('has-photo');
+        positionParticipantsPopover();
+      },{once:true});
+      image.addEventListener('error',()=>image.remove(),{once:true});
+      image.src=url;
+    }
   }
   function rowsFrom(data){
     return Array.isArray(data?.id)?data.id.map((id,i)=>{
@@ -394,7 +443,8 @@
     // sélectionne QUE les inscriptions confirmées du même jour et créneau.
     // La case peut contenir deux activités : elles restent indépendantes.
     return `<div class="activity-item" role="button" tabindex="0" aria-pressed="false"
-      data-activity-name="${esc(norm(event.name))}" data-open="${event.open?'1':'0'}"
+      data-activity-id="${event.id}" data-activity-name="${esc(norm(event.name))}" data-open="${event.open?'1':'0'}"
+      data-activity-staff="${esc(event.staff||'')}"
       aria-label="${esc(event.open?'Groupe ouvert proposé : '+event.name:'Afficher les participants inscrits à '+event.name)}"
       title="${esc(event.name+(showStaff?' — '+event.staff:'')+(event.open?' (groupe ouvert, inscription non confirmée)':''))}">
       <span class="activity-name">${esc(isFree(event.name)?'Temps libre':event.name)}${event.open?'<span class="open-tag" aria-label="Activité ouverte proposée" title="Activité ouverte (non inscrite)"> ◇</span>':''}</span>
@@ -463,7 +513,7 @@
       // participation effective au créneau choisi.
       if(person.flags?.[selection.day-1]!==true)continue;
       const cell=state.model.cells.get(`${person.id}|${selection.day}|${selection.half}`);
-      if(cell?.activities.some(a=>!a.open&&norm(a.name)===selection.name))people.add(person.id);
+      if(cell?.activities.some(a=>!a.open&&a.id===selection.id))people.add(person.id);
     }
     return people;
   }
@@ -492,15 +542,23 @@
       const matchUser=!!oneUser&&uid===oneUser.id;
       const matchActivity=!!selected&&participants.has(uid);
       row.classList.toggle('selected-person',matchUser);
-      row.classList.toggle('selected-activity',matchActivity);
-      row.querySelector('td.user')?.setAttribute('aria-pressed',String(matchUser));
-      row.querySelectorAll('.activity-item').forEach(item=>{
-        const td=item.closest('td.activities');
-        const hit=!!selected&&matchActivity&&item.dataset.open==='0'&&
-          item.dataset.activityName===selected.name&&
-          Number(td?.dataset.dayIndex)===selected.day&&td?.dataset.halfValue===selected.half;
-        item.classList.toggle('matching-activity',hit);
-        item.setAttribute('aria-pressed',String(hit));
+      // En mode « activité » : uniquement la cellule identité et la cellule
+      // de l'activité dans la demi-journée choisie. La ligne reste normale.
+      row.classList.remove('selected-activity');
+      const userCell=row.querySelector('td.user');
+      userCell?.classList.toggle('participant-user',matchActivity);
+      userCell?.setAttribute('aria-pressed',String(matchUser||matchActivity));
+      row.querySelectorAll('td.activities').forEach(td=>{
+        let hitCell=false;
+        td.querySelectorAll('.activity-item').forEach(item=>{
+          const hit=!!selected&&matchActivity&&item.dataset.open==='0'&&
+            Number(item.dataset.activityId)===selected.id&&
+            Number(td.dataset.dayIndex)===selected.day&&td.dataset.halfValue===selected.half;
+          item.classList.toggle('matching-activity',hit);
+          item.setAttribute('aria-pressed',String(hit));
+          hitCell=hitCell||hit;
+        });
+        td.classList.toggle('participant-activity',hitCell);
       });
     }
   }
@@ -508,6 +566,7 @@
   // Les coordonnées sont mesurées après le zoom écran de la V9.5.
   function hideParticipantsPopover(){
     state.popoverAnchor=null;
+    state.imageRequestId++; // Ignore les chargements d'images lancés avant fermeture.
     const box=$('participantsPopover');
     if(box)box.hidden=true;
   }
@@ -541,12 +600,31 @@
     const half=selection.half==='matin'?'matin':'après-midi';
     $('participantsTitle').textContent=selection.display;
     $('participantsMeta').textContent=day+' · '+half;
+    const activity=state.byId.activities.get(selection.id);
+    const begin=clock(activity?.Heure_debut);
+    const end=clock(activity?.Heure_fin);
+    const hours=$('participantsHours');
+    hours.hidden=!(begin||end);
+    hours.textContent=begin&&end?'Horaires : '+begin+' – '+end:
+      begin?'Début : '+begin:'Fin : '+end;
+    const staff=$('participantsStaff');
+    staff.hidden=!selection.staff;
+    staff.textContent=selection.staff?'Professionnel(s) : '+selection.staff:'';
     $('participantsCount').textContent=people.length+
       ' participant'+(people.length>1?'s':'')+' inscrit'+(people.length>1?'s':'');
     const open=item.dataset.open==='1';
     const context=$('participantsContext');
     context.hidden=!open;
-    context.textContent=open?'Groupe ouvert proposé à cet usager : il ne s’agit pas d’une inscription confirmée.':'';
+    context.textContent=open?'Groupe ouvert proposé : aucune inscription n’est déduite de cette proposition.':'';
+    const imageNote=$('participantsImagesNote');imageNote.hidden=true;imageNote.textContent='';
+    const attachments=[];
+    const picto=$('participantsPicto');picto.classList.remove('has-photo');
+    picto.replaceChildren();
+    const pictoFallback=document.createElement('span');
+    pictoFallback.className='participants-image-fallback';
+    pictoFallback.textContent='▦';picto.append(pictoFallback);
+    const pictogramId=firstAttachment(activity,'Visuel');
+    if(pictogramId)attachments.push({holder:picto,id:pictogramId,alt:'Visuel de '+selection.display});
     const list=$('participantsList');list.replaceChildren();
     if(!people.length){
       const li=document.createElement('li');li.className='participants-popover-empty';
@@ -554,13 +632,23 @@
       list.append(li);
     }else for(const person of people){
       const li=document.createElement('li');
-      li.textContent=person.name; // textContent protège les données Grist.
+      const portrait=document.createElement('span');portrait.className='participant-portrait';
+      const fallback=document.createElement('span');fallback.className='participants-image-fallback';
+      fallback.textContent=initials(person);portrait.append(fallback);
+      const label=document.createElement('span');label.className='participant-fullname';
+      label.textContent=person.name;
+      li.append(portrait,label);
       li.classList.toggle('is-origin',person.id===originId);
       list.append(li);
+      const photoId=firstAttachment(person.source,'Portrait');
+      if(photoId)attachments.push({holder:portrait,id:photoId,alt:'Photo de '+person.name});
     }
     state.popoverAnchor=item;
     box.hidden=false;
     positionParticipantsPopover();
+    // Un seul jeton temporaire permet de lire le picto et toutes les photos.
+    const requestId=++state.imageRequestId;
+    void attachPopupImages(attachments,requestId);
   }
   function clearHighlights(){
     hideParticipantsPopover();
@@ -579,16 +667,18 @@
     const cell=item.closest('td.activities');
     if(!cell)return;
     const name=item.dataset.activityName;
+    const activityId=Number(item.dataset.activityId);
     const day=Number(cell.dataset.dayIndex),half=cell.dataset.halfValue;
-    if(!name||!day||!half)return;
+    if(!name||!activityId||!day||!half)return;
     // Recliquer sur la même activité ferme la liste et annule le surlignage.
-    const same=state.activitySelection?.name===name &&
+    const same=state.activitySelection?.id===activityId &&
       state.activitySelection?.day===day && state.activitySelection?.half===half &&
       state.popoverAnchor===item;
     hideParticipantsPopover();
     state.userId=null;state.selectionMessage='';
     if(same){state.activitySelection=null;applyHighlights();return;}
-    state.activitySelection={name,day,half,display:item.querySelector('.activity-name')?.textContent.replace(/◇/g,'').trim()||name};
+    state.activitySelection={id:activityId,name,day,half,staff:item.dataset.activityStaff||'',
+      display:item.querySelector('.activity-name')?.textContent.replace(/◇/g,'').trim()||name};
     // Même si le libellé est proposé au titre d'un groupe ouvert, seules les
     // inscriptions CONFIRMÉES comptent dans la liste et le surlignage.
     applyHighlights();
