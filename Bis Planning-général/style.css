@@ -1,0 +1,169 @@
+:root {
+  --ink:#111111; --navy:#10365f; --row-blue:#dff2ff; --row-white:#ffffff;
+  --rehab:#7846b8;
+  --absent:#ffb64f; --sheet-width:410mm; --row-mm:7mm;
+  --screen-scale:1; --print-scale-a3:1; --print-scale-a4:.695; --print-width:410mm; --print-height:287mm;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;background:#e9eef2;font:13px Arial,Helvetica,sans-serif;color:#15283b}
+[hidden]{display:none!important}
+.toolbar{position:sticky;top:0;z-index:10;background:#fff;border-bottom:2px solid #233b58;padding:10px;display:flex;gap:9px;align-items:end;flex-wrap:wrap}
+.field{display:flex;flex-direction:column;gap:3px}
+.field label{font-size:11px;font-weight:700}
+.field select{border:1px solid #9aa6b2;background:white;border-radius:4px;padding:7px 6px;min-width:135px;max-width:230px;font-size:12px}
+button{font:700 12px Arial;padding:9px 11px;border-radius:5px;border:1px solid #163b63;background:#173b63;color:white;cursor:pointer}
+button.secondary{color:#173b63;background:white}button:disabled{opacity:.45;cursor:not-allowed}
+.messages{padding:7px 12px 2px;font-size:12px}.messages p{margin:4px 0 6px}.messages .error{color:#9e2222;font-weight:bold}
+#paperNote{color:#42556a;font-size:11px}
+#warningDetails{background:#fff6dd;border:1px solid #b18d38;border-radius:4px;padding:6px 9px;margin-bottom:8px;max-width:1000px}
+#warningDetails summary{cursor:pointer;font-weight:700}
+#warnings{padding-left:20px;margin:7px 0;max-height:180px;overflow:auto}
+#warnings li{margin:3px 0}
+.viewport{width:100%;overflow:auto;padding:7px 9px 15px}
+.sheet{width:410mm;background:#fff;color:#090909;margin:0;box-shadow:0 3px 12px #0002;zoom:var(--screen-scale);overflow:visible}
+.sheet-title{background:var(--navy);color:white;height:12mm;display:flex;align-items:center;justify-content:center;gap:6mm;font-size:16pt;letter-spacing:.1px}
+.sheet-title span{font-weight:700}
+/* V9.3 : le trait à gauche de N° est tracé sous forme vectorielle et
+   SANS fond CSS. Il reste ainsi visible à l'impression même lorsque le
+   navigateur fusionne les bordures de table ou omet les arrière-plans. */
+.table-frame{position:relative;width:410mm;overflow:visible}
+#tableHost{position:relative;width:410mm}
+.left-border-ink{position:absolute;z-index:7;pointer-events:none;top:0;left:0;width:10px;height:100%;overflow:visible}
+/* La bordure droite déjà validée est conservée. */
+#tableHost::after{content:"";position:absolute;top:0;bottom:0;right:0;width:2.4px;background:#000;z-index:3;pointer-events:none}
+.planning{border-collapse:collapse;border-spacing:0;table-layout:fixed;width:410mm;border:2.4px solid #000}
+.planning th,.planning td{border:.6px solid #000;padding:0;overflow:hidden;vertical-align:middle}
+.planning thead th{text-align:center}
+.planning .day-label{height:8mm;color:white;font-size:12pt;font-weight:700}
+.planning .half-label{height:7mm;background:#eef2f5;font-size:8.5pt}
+.planning .type-label{height:7mm;background:#eaf2fa;font-size:7pt;font-weight:700}
+.planning .type-label.rehab-header{background:var(--rehab);color:white}
+.planning th.name-col,.planning th.num-col{background:#dceaf7;color:#172c44;font-weight:700;font-size:10pt}
+/* V9.2 — La séparation sous les TROIS niveaux d'en-tête est un seul
+   trait noir fort : de N° jusqu'au Kiné/Ortho du vendredi après-midi.
+   Le trait appartient à la grille (pas de décalage, pas de ligne ajoutée). */
+/* La bordure sous les en-têtes et au-dessus du premier usager doit être
+   continue, y compris lorsque certaines cellules couvrent 4 colonnes. */
+.planning thead tr:last-child > th,
+.planning thead th[rowspan="3"]{
+  border-bottom:2.4px solid #000!important;
+}
+.planning tbody tr:first-child > td{
+  border-top:2.4px solid #000!important;
+  box-shadow:inset 0 1.15px 0 #000;
+}
+/* Séparation verticale N° / Usagers, en-tête ET lignes d'usagers. */
+.planning thead th.name-col,
+.planning tbody td.user{
+  border-left:2.4px solid #000!important;
+  box-shadow:inset 1.15px 0 0 #000;
+}
+/* L'intersection des deux gros traits doit rester noire, sans trou. */
+.planning tbody tr:first-child > td.user{
+  box-shadow:inset 1.15px 0 0 #000,inset 0 1.15px 0 #000;
+}
+/* Ne pas affaiblir la séparation de jour à sa jonction avec le trait. */
+.planning tbody tr:first-child > td.day-start{
+  box-shadow:inset 1.35px 0 0 #000,inset 0 1.15px 0 #000;
+}
+.planning tbody tr{height:var(--row-mm);min-height:var(--row-mm);max-height:var(--row-mm);break-inside:avoid;page-break-inside:avoid}
+.planning tbody td{height:var(--row-mm);max-height:var(--row-mm);font-size:7.5pt}
+.planning tbody tr:nth-child(even) td:not(.rehab):not(.absent){background:var(--row-blue)}
+.planning tbody tr:nth-child(odd) td:not(.rehab):not(.absent){background:var(--row-white)}
+.planning tbody td.number{font-weight:700;text-align:center;font-size:8pt}
+.planning tbody td.user{padding:0 1mm;font-size:8pt;font-weight:700;text-align:left;white-space:normal;overflow-wrap:anywhere;line-height:1.05}
+.planning .user-label{display:block;width:100%;line-height:1.05;overflow-wrap:anywhere}
+.planning tbody tr:nth-child(3n) td{border-bottom:1.5px solid #000!important}
+/* Même séparateur renforcé sur Lundi, Mardi, Mercredi, Jeudi et Vendredi,
+   à tous les niveaux : bandeau du jour, demi-journée, activités et absences.
+   L'ombre interne rend la ligne stable à l'impression PDF sans toucher aux tailles. */
+.planning .day-start{border-left:2.4px solid #000!important;box-shadow:inset 1.35px 0 0 #000}
+.planning .half-start{border-left:1.1px solid #000!important}
+.planning .activities{padding:.2mm .4mm;vertical-align:middle;text-align:left}
+.events{display:flex;flex-direction:column;gap:0;justify-content:center;min-width:0;height:calc(var(--row-mm) - .5mm);max-height:calc(var(--row-mm) - .5mm);overflow:hidden}
+.activity-item{display:block;min-width:0;padding:.07mm .25mm;line-height:1.0;background:transparent;border:0;overflow-wrap:anywhere}
+.activity-name{display:block;font-weight:700;font-size:6.65pt;line-height:1.0}
+.activity-staff{display:block;font-size:5.25pt;margin-top:0;line-height:1.0}
+.open-tag{font-size:1em;font-weight:900;color:#344f70;white-space:nowrap}
+.planning .rehab{background:#e9def6;text-align:center;font-weight:700;font-size:7pt;white-space:normal;line-height:1.06;overflow:hidden}
+.rehab-entry{display:block;white-space:nowrap;font-size:7pt}
+.planning .absent{background:var(--absent)!important;text-align:center;font-size:9pt;font-weight:700}
+@media screen {
+/* V9.6 — Sélection visible à l'écran UNIQUEMENT, sans border/padding/hauteur.
+   Liserés épais tracés par ombres intérieures ; ne touchent pas aux dimensions. */
+#selectionNote{margin:2px 0 5px;padding:5px 9px;max-width:100%;background:#fff4ca;border-left:4px solid #d18b00;font-weight:700;color:#553b0a}
+.planning tbody td.user,.planning tbody td.number{cursor:pointer}
+.planning .activity-item{cursor:pointer}
+.planning .activity-item:focus-visible,.planning td.user:focus-visible{outline:2px solid #1b66cc;outline-offset:-2px}
+.planning tbody tr.selected-person td:not(.absent):not(.rehab),
+.planning tbody tr.selected-activity td:not(.absent):not(.rehab){background:#ffe49a!important}
+/* Les cases Kiné/Ortho et Absent gardent leurs couleurs respectives. */
+.planning tbody tr.selected-person td,
+.planning tbody tr.selected-activity td{
+  box-shadow:inset 0 2px 0 #a97500,inset 0 -2px 0 #a97500!important;
+}
+/* Renfort visible au début et à la fin de chaque ligne sélectionnée. */
+.planning tbody tr.selected-person td:first-child,
+.planning tbody tr.selected-activity td:first-child{
+  box-shadow:inset 2px 0 0 #a97500,inset 0 2px 0 #a97500,inset 0 -2px 0 #a97500!important;
+}
+.planning tbody tr.selected-person td:last-child,
+.planning tbody tr.selected-activity td:last-child{
+  box-shadow:inset -2px 0 0 #a97500,inset 0 2px 0 #a97500,inset 0 -2px 0 #a97500!important;
+}
+/* Seule la case de l'activité cliquée est repérée plus fortement. */
+.planning .activity-item.matching-activity .activity-name{
+  background:#f7b92c;color:#111;border-radius:2px;
+  box-decoration-break:clone;-webkit-box-decoration-break:clone;
+}
+}
+.sheet-footer{display:flex;align-items:center;justify-content:space-between;gap:3mm;padding:2mm 3mm 1mm;min-height:10mm;font-size:7.5pt}
+.legend{display:flex;flex-wrap:wrap;gap:1.5mm 3.5mm;align-items:center}
+.legend>span{display:inline-flex;align-items:center;gap:1mm;white-space:nowrap}
+.swatch{display:inline-block;width:4mm;height:3mm;border:.5px solid black}
+.swatch.rehab{background:var(--rehab)}.swatch.absent{background:var(--absent)}
+.date-meta{white-space:nowrap;display:flex;gap:2mm;flex-direction:column;text-align:right}
+@page{size:A3 landscape;margin:5mm}
+@media print{
+  html,body{margin:0!important;padding:0!important;width:var(--print-width)!important;height:var(--print-height)!important;background:white!important;overflow:hidden!important;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
+  .no-print{display:none!important}
+  .viewport{margin:0!important;padding:0!important;width:auto!important;overflow:visible!important}
+  .sheet{margin:0!important;position:absolute!important;top:0!important;left:0!important;box-shadow:none!important;width:410mm!important;zoom:var(--print-scale-a3)!important;overflow:visible!important}
+  body.paper-a4 .sheet{zoom:var(--print-scale-a4)!important}
+  *{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
+}
+
+/* V9.6 — Petite fiche flottante AU CLIC, ancrée à l'activité.
+   Aucune marge/police/bordure n'est ajoutée à la grille du planning. */
+@media screen {
+  .participants-popover[hidden]{display:none!important}
+  .participants-popover{
+    position:fixed;z-index:1000;box-sizing:border-box;width:min(325px,calc(100vw - 20px));
+    max-height:calc(100vh - 20px);overflow:hidden;display:flex;flex-direction:column;
+    border:1px solid #c2d0e0;border-radius:12px;background:#fff;color:#1b2e47;
+    box-shadow:0 9px 28px rgba(20,40,70,.26);padding:12px;
+    font:13px/1.35 Arial,Helvetica,sans-serif;
+  }
+  .participants-popover-heading{display:flex;gap:9px;align-items:flex-start;flex:0 0 auto}
+  .participants-popover-icon{width:31px;height:31px;flex:0 0 31px;border-radius:9px;
+    background:#fff0bf;color:#916015;display:flex;align-items:center;justify-content:center;
+    font-size:20px;line-height:1}
+  .participants-popover-titles{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+  .participants-popover-titles strong{font-size:16px;line-height:1.2;overflow-wrap:anywhere}
+  #participantsMeta{font-size:11px;color:#52647c}
+  .participants-popover-close{flex:0 0 29px;width:29px;height:29px;border:0;
+    background:#f3f6fa;color:#233b57;padding:0;border-radius:7px;
+    font-size:21px;font-weight:400;line-height:27px;cursor:pointer}
+  .participants-popover-close:hover{background:#e2eaf4}
+  .participants-popover-count{margin:10px 0 7px;padding:0 0 6px;border-bottom:1px solid #e4eaf1;
+    font-size:12px;font-weight:bold;color:#294264;flex:0 0 auto}
+  .participants-popover-context{margin:0 0 6px;background:#fff4d6;border-left:3px solid #d3a243;
+    padding:6px 8px;font-size:11px;flex:0 0 auto}
+  .participants-popover-list{list-style:decimal inside;margin:0;padding:0;overflow-y:auto;min-height:0;
+    overscroll-behavior:contain;flex:0 1 auto}
+  .participants-popover-list li{margin:0 0 5px;padding:7px 9px;background:#f2f6fc;
+    border-radius:7px;font-size:12px;font-weight:700;overflow-wrap:anywhere}
+  .participants-popover-list li.is-origin{background:#fff0bd;border-left:3px solid #d6a129}
+  .participants-popover-empty{padding:7px 3px;color:#52647c;font-size:12px}
+}
+@media print{#participantsPopover{display:none!important}}
