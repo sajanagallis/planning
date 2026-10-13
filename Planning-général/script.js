@@ -1,5 +1,5 @@
 /*
- * Planning général SAJ Anagallis V9.6.1 — sélection usager / participants d’activité, PDF direct — lecture seule, données Grist.
+ * Planning général SAJ Anagallis V9.6.2 — sélection usager / participants d’activité, PDF direct — lecture seule, données Grist.
  * Une grande case « Activités » par usager et demi-journée ; les deux
  * premières activités inscrites, ou proposées en groupe ouvert si la demi-journée
  * est libre, y sont listées. Autre colonne : Kiné/Ortho.
@@ -64,44 +64,83 @@
     return [text(person.first),text(person.last)].filter(Boolean)
       .map(v=>v[0].toUpperCase()).join('')||'•';
   }
-  // Grist fournit une URL de document et un jeton temporaire en lecture seule.
-  // Les URL n'ont pas vocation à être persistées ou imprimées.
-  function attachmentUrl(tokenInfo,id){
-    if(!tokenInfo?.baseUrl||!tokenInfo?.token||!Number.isInteger(id)||id<=0)return '';
-    return String(tokenInfo.baseUrl).replace(/\/$/,'')+
-      '/attachments/'+id+'/download?auth='+encodeURIComponent(tokenInfo.token);
+  // URLs officielles Grist : /api/docs/<doc>/attachments/<id>/download?auth=<jeton>.
+  // Certaines instances Grist auto-hébergées renvoient une adresse technique
+  // interne (0.0.0.0, localhost), inutilisable depuis le navigateur.
+  const PUBLIC_GRIST_ORIGIN='https://grist.laurentclaude.fr';
+  function publicAttachmentBase(url){
+    const raw=String(url||'').trim();
+    if(!raw)return '';
+    try{
+      const u=new URL(raw);
+      if(!/^https?:$/.test(u.protocol))return '';
+      const internal=['localhost','127.0.0.1','0.0.0.0','::1','[::1]'];
+      if(internal.includes(u.hostname.toLowerCase())){
+        const known=new URL(PUBLIC_GRIST_ORIGIN);
+        u.protocol=known.protocol;u.hostname=known.hostname;u.port=known.port;
+      }else if(u.hostname.toLowerCase()==='grist.laurentclaude.fr'&&u.protocol==='http:'){
+        u.protocol='https:';
+      }
+      // Le jeton donne accès au document courant ; ne jamais réécrire vers un
+      // domaine tiers et ne pas faire apparaître le jeton dans les diagnostics.
+      if(u.username||u.password||!u.pathname.includes('/api/docs/'))return '';
+      return u.href.replace(/\/$/,'');
+    }catch(_){return '';}
   }
-  async function attachPopupImages(images,requestId){
-    if(!images.length)return;
+  function attachmentUrl(tokenInfo,id){
+    if(!tokenInfo?.token||!Number.isInteger(id)||id<=0)return '';
+    const base=publicAttachmentBase(tokenInfo.baseUrl);
+    return base?base+'/attachments/'+id+'/download?auth='+encodeURIComponent(tokenInfo.token):'';
+  }
+  function imageNotice(message,requestId){
+    if(state.imageRequestId!==requestId)return;
+    const notice=$('participantsImagesNote');
+    if(!notice)return;
+    notice.hidden=!message;
+    notice.textContent=message||'';
+  }
+  async function attachPopupImages(images,requestId,missing){
+    if(!images.length){
+      imageNotice('Aucune pièce jointe renseignée pour les photos ou le pictogramme de cette activité.',requestId);
+      return;
+    }
+    imageNotice('Chargement des images depuis Grist…',requestId);
     let token;
     try{token=await grist.docApi.getAccessToken({readOnly:true});}
     catch(e){
-      console.warn('Images jointes Grist inaccessibles:',e?.message||e);
-      if(state.imageRequestId===requestId){
-        const notice=$('participantsImagesNote');
-        if(notice){notice.textContent='Photos et pictogramme non accessibles avec les autorisations actuelles.';notice.hidden=false;}
-      }
+      console.warn('Grist : impossible de demander un jeton pour les pièces jointes.',e?.message||e);
+      imageNotice('Grist ne donne pas accès aux images : jeton de lecture indisponible. Vérifier les droits du widget.',requestId);
       return;
     }
     if(state.imageRequestId!==requestId||$('participantsPopover')?.hidden)return;
-    for(const {holder,id,alt} of images){
-      if(!holder.isConnected)continue;
-      const url=attachmentUrl(token,id);
-      if(!url)continue;
-      const image=document.createElement('img');
-      image.alt=alt;
-      image.decoding='async';
-      image.loading='eager';
-      image.referrerPolicy='no-referrer';
-      image.addEventListener('load',()=>{
-        if(state.imageRequestId!==requestId||!holder.isConnected)return;
-        holder.replaceChildren(image);
-        holder.classList.add('has-photo');
-        positionParticipantsPopover();
-      },{once:true});
-      image.addEventListener('error',()=>image.remove(),{once:true});
-      image.src=url;
+    if(!token?.token||!publicAttachmentBase(token.baseUrl)){
+      imageNotice('Adresse ou jeton des images invalide renvoyé par Grist. Vérifier l’URL publique de l’instance.',requestId);
+      return;
     }
+    let successes=0, failures=0;
+    const promises=images.map(({holder,id,alt})=>new Promise(resolve=>{
+      if(!holder.isConnected){resolve();return;}
+      const url=attachmentUrl(token,id);
+      if(!url){failures++;resolve();return;}
+      const picture=new Image();
+      picture.alt=alt;picture.decoding='async';picture.loading='eager';picture.referrerPolicy='no-referrer';
+      picture.onload=()=>{
+        if(state.imageRequestId===requestId&&holder.isConnected){
+          holder.replaceChildren(picture);holder.classList.add('has-photo');
+          successes++;positionParticipantsPopover();
+        }
+        resolve();
+      };
+      picture.onerror=()=>{failures++;resolve();};
+      picture.src=url;
+    }));
+    await Promise.all(promises);
+    if(state.imageRequestId!==requestId||$('participantsPopover')?.hidden)return;
+    const detail=[];
+    if(failures)detail.push(failures+' image'+(failures>1?'s':'')+' non chargée'+(failures>1?'s':''));
+    if(missing)detail.push(missing+' pièce'+(missing>1?'s':'')+' jointe'+(missing>1?'s':'')+' absente'+(missing>1?'s':''));
+    if(!successes&&failures)detail.push('vérifier les droits d’accès aux pièces jointes Grist (403), le serveur et le format des fichiers');
+    imageNotice(detail.length?'Images Grist : '+detail.join(' ; ')+'.':'',requestId);
   }
   function rowsFrom(data){
     return Array.isArray(data?.id)?data.id.map((id,i)=>{
@@ -618,6 +657,7 @@
     context.textContent=open?'Groupe ouvert proposé : aucune inscription n’est déduite de cette proposition.':'';
     const imageNote=$('participantsImagesNote');imageNote.hidden=true;imageNote.textContent='';
     const attachments=[];
+    let missingImageCount=0;
     const picto=$('participantsPicto');picto.classList.remove('has-photo');
     picto.replaceChildren();
     const pictoFallback=document.createElement('span');
@@ -625,6 +665,7 @@
     pictoFallback.textContent='▦';picto.append(pictoFallback);
     const pictogramId=firstAttachment(activity,'Visuel');
     if(pictogramId)attachments.push({holder:picto,id:pictogramId,alt:'Visuel de '+selection.display});
+    else missingImageCount++;
     const list=$('participantsList');list.replaceChildren();
     if(!people.length){
       const li=document.createElement('li');li.className='participants-popover-empty';
@@ -642,13 +683,14 @@
       list.append(li);
       const photoId=firstAttachment(person.source,'Portrait');
       if(photoId)attachments.push({holder:portrait,id:photoId,alt:'Photo de '+person.name});
+      else missingImageCount++;
     }
     state.popoverAnchor=item;
     box.hidden=false;
     positionParticipantsPopover();
     // Un seul jeton temporaire permet de lire le picto et toutes les photos.
     const requestId=++state.imageRequestId;
-    void attachPopupImages(attachments,requestId);
+    void attachPopupImages(attachments,requestId,missingImageCount);
   }
   function clearHighlights(){
     hideParticipantsPopover();
