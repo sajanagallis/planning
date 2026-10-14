@@ -1,5 +1,5 @@
 /*
- * Planning général SAJ Anagallis V9.6 — sélection usager / participants d’activité, PDF direct — lecture seule, données Grist.
+ * Planning général SAJ Anagallis V9.6.2 — sélection usager / participants d’activité, PDF direct — lecture seule, données Grist.
  * Une grande case « Activités » par usager et demi-journée ; les deux
  * premières activités inscrites, ou proposées en groupe ouvert si la demi-journée
  * est libre, y sont listées. Autre colonne : Kiné/Ortho.
@@ -13,7 +13,8 @@
     users:'Usagers', years:'Annees', activities:'Activites', participations:'Participations',
     animators:'Animateurs', days:'Jours_de_la_semaine', hours:'Heures',
     reeducations:'Reeducations', rehabTypes:'Activites_autres',
-    annualPresence:'Presences_annuelles', forecasts:'Planning_previsionnel'
+    annualPresence:'Presences_annuelles', forecasts:'Planning_previsionnel',
+    missions:'Missions_annexes', halfdays:'Demi_journees', referents:'Referent'
   };
   const REQUIRED = ['users','years','activities','participations','animators','days','hours','reeducations','rehabTypes'];
   const DAYS = [
@@ -24,9 +25,10 @@
     {i:5, label:'Vendredi',flag:'Ve',color:'#d65158'}
   ];
   const HALVES = [{value:'matin',label:'Matin'},{value:'apres-midi',label:'Après-midi'}];
+  const DISPO_GREEN='#56A86C',REF_ORANGE='#FFE1BF';
   const CUTOFF=12*60+30;
   const state={raw:{},byId:{},columns:{},existing:[],yearId:null,currentYearId:null,userId:null,
-    activitySelection:null,selectionMessage:"",popoverAnchor:null,loaded:false,loading:false,paper:'a3',model:null,refreshTimer:null};
+    activitySelection:null,selectionMessage:"",popoverAnchor:null,imageRequestId:0,loaded:false,loading:false,paper:'a3',model:null,refreshTimer:null};
   const $=id=>document.getElementById(id);
   const text=v=>v==null?'':String(v).trim();
   const esc=v=>text(v).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
@@ -53,6 +55,94 @@
     }
     const s=text(v);
     return s&&!/^\[?\s*[Ll]?,?\s*\d+(?:,\s*\d+)*\s*\]?$/.test(s)?[s]:[];
+  }
+  // Colonnes exactes du document Grist : Usagers.Portrait et Activites.Visuel.
+  // Toutes deux sont des colonnes Attachments et contiennent des références
+  // de pièces jointes. Les fichiers demeurent dans Grist, jamais sur GitHub.
+  function firstAttachment(record,field){
+    return refs(record?.[field])[0]||null;
+  }
+  function initials(person){
+    return [text(person.first),text(person.last)].filter(Boolean)
+      .map(v=>v[0].toUpperCase()).join('')||'•';
+  }
+  // URLs officielles Grist : /api/docs/<doc>/attachments/<id>/download?auth=<jeton>.
+  // Certaines instances Grist auto-hébergées renvoient une adresse technique
+  // interne (0.0.0.0, localhost), inutilisable depuis le navigateur.
+  const PUBLIC_GRIST_ORIGIN='https://grist.laurentclaude.fr';
+  function publicAttachmentBase(url){
+    const raw=String(url||'').trim();
+    if(!raw)return '';
+    try{
+      const u=new URL(raw);
+      if(!/^https?:$/.test(u.protocol))return '';
+      const internal=['localhost','127.0.0.1','0.0.0.0','::1','[::1]'];
+      if(internal.includes(u.hostname.toLowerCase())){
+        const known=new URL(PUBLIC_GRIST_ORIGIN);
+        u.protocol=known.protocol;u.hostname=known.hostname;u.port=known.port;
+      }else if(u.hostname.toLowerCase()==='grist.laurentclaude.fr'&&u.protocol==='http:'){
+        u.protocol='https:';
+      }
+      // Le jeton donne accès au document courant ; ne jamais réécrire vers un
+      // domaine tiers et ne pas faire apparaître le jeton dans les diagnostics.
+      if(u.username||u.password||!u.pathname.includes('/api/docs/'))return '';
+      return u.href.replace(/\/$/,'');
+    }catch(_){return '';}
+  }
+  function attachmentUrl(tokenInfo,id){
+    if(!tokenInfo?.token||!Number.isInteger(id)||id<=0)return '';
+    const base=publicAttachmentBase(tokenInfo.baseUrl);
+    return base?base+'/attachments/'+id+'/download?auth='+encodeURIComponent(tokenInfo.token):'';
+  }
+  function imageNotice(message,requestId){
+    if(state.imageRequestId!==requestId)return;
+    const notice=$('participantsImagesNote');
+    if(!notice)return;
+    notice.hidden=!message;
+    notice.textContent=message||'';
+  }
+  async function attachPopupImages(images,requestId,missing){
+    if(!images.length){
+      imageNotice('Aucune pièce jointe renseignée pour les photos ou le pictogramme de cette activité.',requestId);
+      return;
+    }
+    imageNotice('Chargement des images depuis Grist…',requestId);
+    let token;
+    try{token=await grist.docApi.getAccessToken({readOnly:true});}
+    catch(e){
+      console.warn('Grist : impossible de demander un jeton pour les pièces jointes.',e?.message||e);
+      imageNotice('Grist ne donne pas accès aux images : jeton de lecture indisponible. Vérifier les droits du widget.',requestId);
+      return;
+    }
+    if(state.imageRequestId!==requestId||$('participantsPopover')?.hidden)return;
+    if(!token?.token||!publicAttachmentBase(token.baseUrl)){
+      imageNotice('Adresse ou jeton des images invalide renvoyé par Grist. Vérifier l’URL publique de l’instance.',requestId);
+      return;
+    }
+    let successes=0, failures=0;
+    const promises=images.map(({holder,id,alt})=>new Promise(resolve=>{
+      if(!holder.isConnected){resolve();return;}
+      const url=attachmentUrl(token,id);
+      if(!url){failures++;resolve();return;}
+      const picture=new Image();
+      picture.alt=alt;picture.decoding='async';picture.loading='eager';picture.referrerPolicy='no-referrer';
+      picture.onload=()=>{
+        if(state.imageRequestId===requestId&&holder.isConnected){
+          holder.replaceChildren(picture);holder.classList.add('has-photo');
+          successes++;positionParticipantsPopover();
+        }
+        resolve();
+      };
+      picture.onerror=()=>{failures++;resolve();};
+      picture.src=url;
+    }));
+    await Promise.all(promises);
+    if(state.imageRequestId!==requestId||$('participantsPopover')?.hidden)return;
+    const detail=[];
+    if(failures)detail.push(failures+' image'+(failures>1?'s':'')+' non chargée'+(failures>1?'s':''));
+    if(missing)detail.push(missing+' pièce'+(missing>1?'s':'')+' jointe'+(missing>1?'s':'')+' absente'+(missing>1?'s':''));
+    if(!successes&&failures)detail.push('vérifier les droits d’accès aux pièces jointes Grist (403), le serveur et le format des fichiers');
+    imageNotice(detail.length?'Images Grist : '+detail.join(' ; ')+'.':'',requestId);
   }
   function rowsFrom(data){
     return Array.isArray(data?.id)?data.id.map((id,i)=>{
@@ -386,7 +476,55 @@
       const hidden=[...cells.values()].reduce((n,c)=>n+Math.max(0,c.activities.length-2),0);
       notes.push(`${hidden} activité(s) inscrite(s) supplémentaires non affichée(s) : seules les 2 premières par demi-journée sont retenues (heure de début, puis nom).`);
     }
-    return {year,people,cells,errors,notes:unique(notes),activityCount,rehabCount,maxEntries,openSlots,proposedOpen};
+    return {year,people,cells,errors,notes,activityCount,rehabCount,maxEntries,openSlots,proposedOpen,
+      responsibility:responsibilities(people,notes)};
+  }
+  // Affectations réelles : Missions_annexes (Réference/Dispo) et Referent.
+  // La lecture repose sur les références Grist, jamais sur un prénom déduit.
+  function responsibilities(people,notes){
+    const slots=new Map(),referents=new Map();
+    for(const row of state.raw.referents||[]){
+      const uid=ref(row.Usagers);
+      if(!uid)continue;
+      referents.set(uid,new Set([...refs(row.Referent),...refs(row.Co_referent)]));
+    }
+    for(const row of state.raw.missions||[]){
+      const typ=norm(row.Type_de_mission_annexe);
+      const kind=typ==='dispo'?'dispo':/^(reference|referent|ref)$/.test(typ)?'ref':null;
+      if(!kind)continue;
+      const staff=ref(row.Animateurs),slot=state.byId.halfdays?.get(ref(row.Creneau_de_mission_annexe));
+      if(!staff||!slot)continue;
+      const d=dayFrom(slot.Jour,0);
+      const label=norm(slot.Demi_journee);
+      const half= /apres midi|apresmidi|apm/.test(label)?'apres-midi':/matin/.test(label)?'matin':halfFrom(state.byId.hours?.get(ref(slot.Heure))?.Heures,'');
+      if(!d||!half){notes.push(`Créneau de mission non identifié (mission ${row.id}).`);continue;}
+      const key=`${d}|${half}`;
+      if(!slots.has(key))slots.set(key,{dispo:new Set(),ref:new Set()});
+      slots.get(key)[kind].add(staff);
+    }
+    const labels=new Map();
+    for(const [key,slot] of slots){
+      labels.set(key,{
+        dispo:[...slot.dispo].map(id=>state.byId.animators.get(id)).filter(Boolean).map(shortStaffName).join(' · '),
+        ref:[...slot.ref].map(id=>state.byId.animators.get(id)).filter(Boolean).map(shortStaffName).join(' · '),
+        dispoIds:slot.dispo,refIds:slot.ref
+      });
+    }
+    return {slots:labels,referents};
+  }
+  function responsibilityFor(person,day,half,record){
+    const slot=state.model?.responsibility?.slots.get(`${day}|${half}`);
+    if(!slot)return {dispo:false,reference:false};
+    const activities=record?.activities||[];
+    const free=activities.length===0||activities.every(a=>a.open||isFree(a.name));
+    const refsForPerson=state.model.responsibility.referents.get(person.id)||new Set();
+    return {dispo:slot.dispoIds.size>0&&free,
+      reference:[...slot.refIds].some(id=>refsForPerson.has(id))};
+  }
+  function slotHeader(day,half,kind){
+    const entry=state.model.responsibility.slots.get(`${day}|${half}`);
+    const label=kind==='dispo'?'Dispo':'Réf';
+    return `<th colspan="2" class="mission-head ${kind==='dispo'?'mission-dispo':'mission-ref'}" title="${esc(label+': '+(entry?.[kind]||'Non renseigné'))}"><span>${esc(label+' : '+(entry?.[kind]||'—'))}</span></th>`;
   }
   function renderEvent(event){
     const showStaff=!noStaff(event.name)&&!isFree(event.name)&&!!event.staff;
@@ -394,7 +532,8 @@
     // sélectionne QUE les inscriptions confirmées du même jour et créneau.
     // La case peut contenir deux activités : elles restent indépendantes.
     return `<div class="activity-item" role="button" tabindex="0" aria-pressed="false"
-      data-activity-name="${esc(norm(event.name))}" data-open="${event.open?'1':'0'}"
+      data-activity-id="${event.id}" data-activity-name="${esc(norm(event.name))}" data-open="${event.open?'1':'0'}"
+      data-activity-staff="${esc(event.staff||'')}"
       aria-label="${esc(event.open?'Groupe ouvert proposé : '+event.name:'Afficher les participants inscrits à '+event.name)}"
       title="${esc(event.name+(showStaff?' — '+event.staff:'')+(event.open?' (groupe ouvert, inscription non confirmée)':''))}">
       <span class="activity-name">${esc(isFree(event.name)?'Temps libre':event.name)}${event.open?'<span class="open-tag" aria-label="Activité ouverte proposée" title="Activité ouverte (non inscrite)"> ◇</span>':''}</span>
@@ -404,9 +543,11 @@
   function cellsFor(person,day,half){
     const halfStart=half.value==='matin'?'day-start':'half-start';
     const b=state.model.cells.get(`${person.id}|${day.i}|${half.value}`)||{activities:[],rehab:[]};
+    const marks=responsibilityFor(person,day.i,half.value,b);
+    const marker=(marks.dispo?' marked-dispo':'')+(marks.reference?' marked-ref':'');
     const acts=b.activities.slice(0,2).map(renderEvent).join('');
     const kine=b.rehab.map(e=>`<span class="rehab-entry" title="${esc(e.kind+' '+e.hour)}">${esc(e.hour)}</span>`).join('');
-    return `<td class="activities ${halfStart}" data-day="${esc(day.label)}" data-day-index="${day.i}" data-half="${esc(half.label)}" data-half-value="${half.value}"><div class="events">${acts}</div></td>
+    return `<td class="activities ${halfStart}${marker}" data-day="${esc(day.label)}" data-day-index="${day.i}" data-half="${esc(half.label)}" data-half-value="${half.value}"><div class="events">${acts}</div></td>
       <td class="rehab" data-day="${esc(day.label)}" data-half="${esc(half.label)}" title="${esc(b.rehab.map(x=>x.kind+' '+x.hour).join(' / '))}">${kine}</td>`;
   }
   function render(){
@@ -425,6 +566,8 @@
     if(model.people.length&&target<minRow)model.errors.push('Nombre d’usagers trop élevé pour garder des cases lisibles sur une page A3.');
     const dayHeads=DAYS.map(d=>`<th colspan="4" class="day-label day-start" style="background:${dayColor(d)}">${esc(d.label)}</th>`).join('');
     const periodHeads=DAYS.map(d=>HALVES.map(h=>`<th colspan="2" class="half-label ${h.value==='matin'?'day-start':'half-start'}">${esc(h.label)}</th>`).join('')).join('');
+    const dispoHeads=DAYS.map(d=>HALVES.map(h=>slotHeader(d.i,h.value,'dispo')).join('')).join('');
+    const refHeads=DAYS.map(d=>HALVES.map(h=>slotHeader(d.i,h.value,'ref')).join('')).join('');
     const types=DAYS.map(d=>HALVES.map(h=>`<th class="type-label ${h.value==='matin'?'day-start':'half-start'}">Activités</th><th class="type-label rehab-header">Kiné / Ortho</th>`).join('')).join('');
     const body=model.people.map((p,i)=>{
       let tds='';
@@ -436,8 +579,8 @@
     }).join('');
     const html=`<table class="planning" aria-label="Planning général SAJ Anagallis"><colgroup>
       <col style="width:7mm"><col style="width:34mm">${Array.from({length:10},()=>'<col style="width:29.3mm"><col style="width:7.5mm">').join('')}</colgroup>
-      <thead><tr><th rowspan="3" class="num-col">N°</th><th rowspan="3" class="name-col">Usagers</th>${dayHeads}</tr>
-      <tr>${periodHeads}</tr><tr>${types}</tr></thead><tbody>${body}</tbody></table>`;
+      <thead><tr><th rowspan="5" class="num-col">N°</th><th rowspan="5" class="name-col">Usagers</th>${dayHeads}</tr>
+      <tr>${periodHeads}</tr><tr>${dispoHeads}</tr><tr>${refHeads}</tr><tr>${types}</tr></thead><tbody>${body}</tbody></table>`;
     $('tableHost').innerHTML=html;$('sheet').hidden=false;
     applyHighlights();
     // Ligne identique pour tous les usagers : chaque zone d'activités est bornée
@@ -463,7 +606,7 @@
       // participation effective au créneau choisi.
       if(person.flags?.[selection.day-1]!==true)continue;
       const cell=state.model.cells.get(`${person.id}|${selection.day}|${selection.half}`);
-      if(cell?.activities.some(a=>!a.open&&norm(a.name)===selection.name))people.add(person.id);
+      if(cell?.activities.some(a=>!a.open&&a.id===selection.id))people.add(person.id);
     }
     return people;
   }
@@ -492,15 +635,23 @@
       const matchUser=!!oneUser&&uid===oneUser.id;
       const matchActivity=!!selected&&participants.has(uid);
       row.classList.toggle('selected-person',matchUser);
-      row.classList.toggle('selected-activity',matchActivity);
-      row.querySelector('td.user')?.setAttribute('aria-pressed',String(matchUser));
-      row.querySelectorAll('.activity-item').forEach(item=>{
-        const td=item.closest('td.activities');
-        const hit=!!selected&&matchActivity&&item.dataset.open==='0'&&
-          item.dataset.activityName===selected.name&&
-          Number(td?.dataset.dayIndex)===selected.day&&td?.dataset.halfValue===selected.half;
-        item.classList.toggle('matching-activity',hit);
-        item.setAttribute('aria-pressed',String(hit));
+      // En mode « activité » : uniquement la cellule identité et la cellule
+      // de l'activité dans la demi-journée choisie. La ligne reste normale.
+      row.classList.remove('selected-activity');
+      const userCell=row.querySelector('td.user');
+      userCell?.classList.toggle('participant-user',matchActivity);
+      userCell?.setAttribute('aria-pressed',String(matchUser||matchActivity));
+      row.querySelectorAll('td.activities').forEach(td=>{
+        let hitCell=false;
+        td.querySelectorAll('.activity-item').forEach(item=>{
+          const hit=!!selected&&matchActivity&&item.dataset.open==='0'&&
+            Number(item.dataset.activityId)===selected.id&&
+            Number(td.dataset.dayIndex)===selected.day&&td.dataset.halfValue===selected.half;
+          item.classList.toggle('matching-activity',hit);
+          item.setAttribute('aria-pressed',String(hit));
+          hitCell=hitCell||hit;
+        });
+        td.classList.toggle('participant-activity',hitCell);
       });
     }
   }
@@ -508,6 +659,7 @@
   // Les coordonnées sont mesurées après le zoom écran de la V9.5.
   function hideParticipantsPopover(){
     state.popoverAnchor=null;
+    state.imageRequestId++; // Ignore les chargements d'images lancés avant fermeture.
     const box=$('participantsPopover');
     if(box)box.hidden=true;
   }
@@ -541,12 +693,33 @@
     const half=selection.half==='matin'?'matin':'après-midi';
     $('participantsTitle').textContent=selection.display;
     $('participantsMeta').textContent=day+' · '+half;
+    const activity=state.byId.activities.get(selection.id);
+    const begin=clock(activity?.Heure_debut);
+    const end=clock(activity?.Heure_fin);
+    const hours=$('participantsHours');
+    hours.hidden=!(begin||end);
+    hours.textContent=begin&&end?'Horaires : '+begin+' – '+end:
+      begin?'Début : '+begin:'Fin : '+end;
+    const staff=$('participantsStaff');
+    staff.hidden=!selection.staff;
+    staff.textContent=selection.staff?'Professionnel(s) : '+selection.staff:'';
     $('participantsCount').textContent=people.length+
       ' participant'+(people.length>1?'s':'')+' inscrit'+(people.length>1?'s':'');
     const open=item.dataset.open==='1';
     const context=$('participantsContext');
     context.hidden=!open;
-    context.textContent=open?'Groupe ouvert proposé à cet usager : il ne s’agit pas d’une inscription confirmée.':'';
+    context.textContent=open?'Groupe ouvert proposé : aucune inscription n’est déduite de cette proposition.':'';
+    const imageNote=$('participantsImagesNote');imageNote.hidden=true;imageNote.textContent='';
+    const attachments=[];
+    let missingImageCount=0;
+    const picto=$('participantsPicto');picto.classList.remove('has-photo');
+    picto.replaceChildren();
+    const pictoFallback=document.createElement('span');
+    pictoFallback.className='participants-image-fallback';
+    pictoFallback.textContent='▦';picto.append(pictoFallback);
+    const pictogramId=firstAttachment(activity,'Visuel');
+    if(pictogramId)attachments.push({holder:picto,id:pictogramId,alt:'Visuel de '+selection.display});
+    else missingImageCount++;
     const list=$('participantsList');list.replaceChildren();
     if(!people.length){
       const li=document.createElement('li');li.className='participants-popover-empty';
@@ -554,13 +727,24 @@
       list.append(li);
     }else for(const person of people){
       const li=document.createElement('li');
-      li.textContent=person.name; // textContent protège les données Grist.
+      const portrait=document.createElement('span');portrait.className='participant-portrait';
+      const fallback=document.createElement('span');fallback.className='participants-image-fallback';
+      fallback.textContent=initials(person);portrait.append(fallback);
+      const label=document.createElement('span');label.className='participant-fullname';
+      label.textContent=person.name;
+      li.append(portrait,label);
       li.classList.toggle('is-origin',person.id===originId);
       list.append(li);
+      const photoId=firstAttachment(person.source,'Portrait');
+      if(photoId)attachments.push({holder:portrait,id:photoId,alt:'Photo de '+person.name});
+      else missingImageCount++;
     }
     state.popoverAnchor=item;
     box.hidden=false;
     positionParticipantsPopover();
+    // Un seul jeton temporaire permet de lire le picto et toutes les photos.
+    const requestId=++state.imageRequestId;
+    void attachPopupImages(attachments,requestId,missingImageCount);
   }
   function clearHighlights(){
     hideParticipantsPopover();
@@ -579,16 +763,18 @@
     const cell=item.closest('td.activities');
     if(!cell)return;
     const name=item.dataset.activityName;
+    const activityId=Number(item.dataset.activityId);
     const day=Number(cell.dataset.dayIndex),half=cell.dataset.halfValue;
-    if(!name||!day||!half)return;
+    if(!name||!activityId||!day||!half)return;
     // Recliquer sur la même activité ferme la liste et annule le surlignage.
-    const same=state.activitySelection?.name===name &&
+    const same=state.activitySelection?.id===activityId &&
       state.activitySelection?.day===day && state.activitySelection?.half===half &&
       state.popoverAnchor===item;
     hideParticipantsPopover();
     state.userId=null;state.selectionMessage='';
     if(same){state.activitySelection=null;applyHighlights();return;}
-    state.activitySelection={name,day,half,display:item.querySelector('.activity-name')?.textContent.replace(/◇/g,'').trim()||name};
+    state.activitySelection={id:activityId,name,day,half,staff:item.dataset.activityStaff||'',
+      display:item.querySelector('.activity-name')?.textContent.replace(/◇/g,'').trim()||name};
     // Même si le libellé est proposé au titre d'un groupe ouvert, seules les
     // inscriptions CONFIRMÉES comptent dans la liste et le surlignage.
     applyHighlights();
@@ -717,6 +903,14 @@
     if(problems.length){warnings([...state.model.errors,...state.model.notes,...problems]);show('Impression suspendue : '+problems.join(' '),true);return false;}
     return true;
   }
+  function responsibilityForPdf(model,p,d,half,record){
+    const s=model.responsibility.slots.get(`${d}|${half}`);
+    if(!s)return {dispo:false,reference:false};
+    const acts=record?.activities||[];
+    const refs=model.responsibility.referents.get(p.id)||new Set();
+    return {dispo:s.dispoIds.size>0&&(acts.length===0||acts.every(a=>a.open||isFree(a.name))),
+      reference:[...s.refIds].some(id=>refs.has(id))};
+  }
   // Export PDF autonome et local : aucune fenêtre d'impression et aucun serveur tiers.
   // Dessin vectoriel : textes, cellules, couleurs et bordures restent nets à l'agrandissement.
   function makePdfBytes(model, format) {
@@ -727,7 +921,7 @@
     const ptPerMm = 72 / 25.4;
     const logicalW = 410;
     const rowH = Math.max(5.5, Math.min(10.4, 243 / model.people.length));
-    const tableTop = 12, headH = 22;
+    const tableTop = 12, headH = 30;
     const tableBottom = tableTop + headH + rowH * model.people.length;
     const totalH = tableBottom + 10;
     const scale = Math.min((pageW - 10) / logicalW, (pageH - 10) / totalH) * 0.998;
@@ -871,10 +1065,10 @@
     center(`Planning SAJ Anagallis   ${yr}`, 0, 0, 410, 12, 16, true, '#ffffff');
     const numW = 7, userW = 35, dayX0 = numW + userW, dayW = 73.6;
     const actW = 29.3, rehabW = 7.5, halfW = actW + rehabW;
-    box(0, 12, numW, 22, '#dceaf7');
-    box(numW, 12, userW, 22, '#dceaf7');
-    center('N°', 0, 12, numW, 22, 9, true, '#172c44');
-    center('Usagers', numW, 12, userW, 22, 10, true, '#172c44');
+    box(0, 12, numW, headH, '#dceaf7');
+    box(numW, 12, userW, headH, '#dceaf7');
+    center('N°', 0, 12, numW, headH, 9, true, '#172c44');
+    center('Usagers', numW, 12, userW, headH, 10, true, '#172c44');
     for (let di = 0; di < 5; di++) {
       const d = DAYS[di], x = dayX0 + di * dayW;
       box(x, 12, dayW, 8, dayColor(d));
@@ -883,16 +1077,23 @@
         const hx = x + hi * halfW;
         box(hx, 20, halfW, 7, '#eef2f5');
         center(HALVES[hi].label, hx, 20, halfW, 7, 8.5, true);
-        box(hx, 27, actW, 7, '#eaf2fa');
-        box(hx + actW, 27, rehabW, 7, '#7846b8');
-        center('Activités', hx, 27, actW, 7, 6.8, true);
-        center('Kiné /', hx + actW, 28, rehabW, 3, 5.5, true, '#ffffff');
-        center('Ortho', hx + actW, 31, rehabW, 3, 5.5, true, '#ffffff');
+        const mission= model.responsibility.slots.get(`${d.i}|${HALVES[hi].value}`);
+        box(hx,27,halfW,4,'#ffffff');
+        box(hx,31,halfW,4,REF_ORANGE);
+        const dispoLabel='Dispo : '+(mission?.dispo||'—'),refLabel='Réf : '+(mission?.ref||'—');
+        textBlock(dispoLabel,hx+.4,27.05,halfW-.8,3.75,6,false,'#111111',1,4.4);
+        frame(hx+.15,27.15,halfW-.3,3.7,.38,DISPO_GREEN);
+        textBlock(refLabel,hx+.4,31.05,halfW-.8,3.75,6,false,'#111111',1,4.4);
+        box(hx,35,actW,7,'#eaf2fa');
+        box(hx + actW, 35, rehabW, 7, '#7846b8');
+        center('Activités', hx, 35, actW, 7, 6.8, true);
+        center('Kiné /', hx + actW, 36, rehabW, 3, 5.5, true, '#ffffff');
+        center('Ortho', hx + actW, 39, rehabW, 3, 5.5, true, '#ffffff');
       }
     }
     // Grille de données par usager, hauteur uniforme et absences sur journée.
     for (let ri = 0; ri < model.people.length; ri++) {
-      const p = model.people[ri], y = 34 + ri * rowH;
+      const p = model.people[ri], y = (tableTop+headH) + ri * rowH;
       const base = ri % 2 ? '#dff2ff' : '#ffffff';
       box(0, y, numW, rowH, base);
       box(numW, y, userW, rowH, base);
@@ -906,9 +1107,11 @@
         } else {
           for (let hi = 0; hi < 2; hi++) {
             const half = HALVES[hi], xx = x + hi * halfW;
-            box(xx, y, actW, rowH, base);
-            box(xx + actW, y, rehabW, rowH, '#e9def6');
             const record = model.cells.get(`${p.id}|${d.i}|${half.value}`);
+            const flags=responsibilityForPdf(model,p,d.i,half.value,record);
+            box(xx, y, actW, rowH, flags.reference?REF_ORANGE:base);
+            if(flags.dispo)frame(xx+.12,y+.12,actW-.24,rowH-.24,.70,DISPO_GREEN);
+            box(xx + actW, y, rehabW, rowH, '#e9def6');
             cellEvents(record?.activities || [], xx, y, actW, rowH);
             const appts = record?.rehab || [];
             if (appts.length) {
@@ -934,11 +1137,11 @@
       if (di) line(x, 12, x, tableBottom, .65);
       for (let hi = 0; hi < 2; hi++) {
         const hx = x + hi * halfW;
-        if (hi) line(hx, 20, hx, 34, .25);
-        line(hx + actW, 27, hx + actW, 34, .17);
+        if (hi) line(hx, 20, hx, 42, .25);
+        line(hx + actW, 35, hx + actW, 42, .17);
         // Des sous-colonnes sont masquées les jours où l'usager est absent.
         for (let ri = 0; ri < model.people.length; ri++) {
-          const y = 34 + ri * rowH;
+          const y = (tableTop+headH) + ri * rowH;
           if (model.people[ri].flags?.[di] === false) continue;
           if (hi) line(hx, y, hx, y + rowH, .3);
           line(hx + actW, y, hx + actW, y + rowH, .17);
@@ -947,12 +1150,14 @@
     }
     line(410, 12, 410, tableBottom, .66);
     line(0, 12, 410, 12, .55);
-    line(0, 34, 410, 34, .66);
+    line(0, tableTop+headH, 410, tableTop+headH, .66);
     line(0, tableBottom, 410, tableBottom, .5);
     for (let di = 0; di < 5; di++) {
       const x = dayX0 + di * dayW;
       line(x, 20, x + dayW, 20, .16);
       line(x, 27, x + dayW, 27, .16);
+      line(x,35,x+dayW,35,.16);
+      line(x,39,x+dayW,39,.16);
     }
     // Légende et pied de page sans bandeaux inutiles.
     const footY = tableBottom + 2.0;
@@ -965,7 +1170,14 @@
     box(268, footY + .3, 3.8, 2.8, '#ffb64f');
     frame(268, footY + .3, 3.8, 2.8, .12);
     write('Absent (journée)', 274, footY, 7.2);
-    write(`SAJ Anagallis · ${yr}`, 2, tableBottom + 6.5, 6.2, false, '#445566');
+    frame(2,tableBottom+5.3,5.4,3.5,.7,DISPO_GREEN);
+    write('Dispo',9,tableBottom+5.4,6.1);
+    box(27,tableBottom+5.3,5.4,3.5,REF_ORANGE);
+    write('Réf',34,tableBottom+5.4,6.1);
+    box(49,tableBottom+5.3,5.4,3.5,REF_ORANGE);
+    frame(49,tableBottom+5.3,5.4,3.5,.7,DISPO_GREEN);
+    write('Dispo + Réf',56,tableBottom+5.4,6.1);
+    write(`SAJ Anagallis · ${yr}`, 112, tableBottom + 6.5, 6.2, false, '#445566');
     const stamp = new Intl.DateTimeFormat('fr-FR').format(new Date());
     write(`Édité le ${stamp}`, 408, tableBottom + 6.5, 6.2, false, '#445566', 'right');
     // Construction minimale et valide du PDF 1.4 : 1 page, 2 polices vectorielles.

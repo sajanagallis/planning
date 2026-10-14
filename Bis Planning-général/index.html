@@ -3,11 +3,11 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Planning général — SAJ Anagallis (V9.6)</title>
-  <meta name="widget-version" content="9.6">
-  <link rel="stylesheet" href="style.css?v=9.6">
+  <title>Planning général — SAJ Anagallis (V9.6.2)</title>
+  <meta name="widget-version" content="9.6.2">
+  <link rel="stylesheet" href="style.css?v=9.6.2-20261013">
   <script defer src="https://docs.getgrist.com/grist-plugin-api.js"></script>
-  <script defer src="script.js?v=9.6"></script>
+  <script defer src="script.js?v=9.6.2-20261013"></script>
 </head>
 <body>
   <main id="app">
@@ -42,6 +42,9 @@
         </div>
         <footer class="sheet-footer">
           <div class="legend">
+            <span><i class="swatch dispo-mark"></i> Dispo : bordure verte</span>
+            <span><i class="swatch ref-mark"></i> Réf : fond orange clair</span>
+            <span><i class="swatch both-mark"></i> Dispo + Réf</span>
             <span>Temps libre : uniquement si inscrit</span>
             <span>◇ : groupe ouvert proposé</span>
             <span><i class="swatch rehab"></i> Kiné / Ortho (début du RDV)</span>
@@ -58,7 +61,7 @@
     aria-modal="false" aria-labelledby="participantsTitle" aria-describedby="participantsMeta"
     tabindex="-1" hidden>
     <div class="participants-popover-heading">
-      <div class="participants-popover-icon" aria-hidden="true">●</div>
+      <div id="participantsPicto" class="participants-popover-icon" role="img" aria-label="Visuel de l’activité"><span class="participants-image-fallback" aria-hidden="true">▦</span></div>
       <div class="participants-popover-titles">
         <strong id="participantsTitle"></strong>
         <span id="participantsMeta"></span>
@@ -66,7 +69,10 @@
       <button id="participantsClose" type="button" class="participants-popover-close"
         aria-label="Fermer la liste des participants">×</button>
     </div>
+    <p id="participantsHours" class="participants-popover-hours" hidden></p>
+    <p id="participantsStaff" class="participants-popover-staff" hidden></p>
     <p id="participantsCount" class="participants-popover-count"></p>
+    <p id="participantsImagesNote" class="participants-images-note" hidden></p>
     <p id="participantsContext" class="participants-popover-context" hidden></p>
     <ol id="participantsList" class="participants-popover-list"></ol>
   </aside>

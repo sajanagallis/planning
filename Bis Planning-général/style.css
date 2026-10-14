@@ -45,7 +45,7 @@ button.secondary{color:#173b63;background:white}button:disabled{opacity:.45;curs
 /* La bordure sous les en-têtes et au-dessus du premier usager doit être
    continue, y compris lorsque certaines cellules couvrent 4 colonnes. */
 .planning thead tr:last-child > th,
-.planning thead th[rowspan="3"]{
+.planning thead th[rowspan="5"]{
   border-bottom:2.4px solid #000!important;
 }
 .planning tbody tr:first-child > td{
@@ -167,3 +167,45 @@ button.secondary{color:#173b63;background:white}button:disabled{opacity:.45;curs
   .participants-popover-empty{padding:7px 3px;color:#52647c;font-size:12px}
 }
 @media print{#participantsPopover{display:none!important}}
+
+/* V9.6.1 : INTERACTIONS A L'ECRAN UNIQUEMENT.
+   Aucune modification des règles @media print ni des dimensions de cellules. */
+@media screen {
+  .planning tbody td.user.participant-user,
+  .planning tbody td.activities.participant-activity {
+    background:#ffe39a!important;
+    box-shadow:inset 0 0 0 2px #be8000!important;
+  }
+  .planning .activity-item.matching-activity .activity-name {
+    background:#f2b936;
+    color:#111;
+  }
+  .participants-popover-icon img,
+  .participant-portrait img {width:100%;height:100%;display:block;object-fit:cover;border-radius:inherit}
+  .participants-popover-icon{overflow:hidden}
+  .participants-popover-hours{font-weight:700;font-size:12px;margin:9px 0 2px;color:#284767}
+  .participants-popover-staff{font-size:12px;margin:2px 0 5px;color:#345470}
+  .participants-images-note{font-size:11px;margin:3px 0;color:#8b4e26}
+  .participants-popover-list{list-style:none}
+  .participants-popover-list li:not(.participants-popover-empty){
+    display:flex;align-items:center;gap:10px;padding:5px 7px;
+  }
+  .participant-portrait{
+    display:flex;flex:0 0 43px;width:43px;height:43px;border-radius:7px;
+    align-items:center;justify-content:center;background:#dce7f5;color:#284767;
+    overflow:hidden;font-size:14px;font-weight:700;
+  }
+  .participant-fullname{min-width:0;overflow-wrap:anywhere}
+}
+
+/* Ajouts isolés V9.6.2 : créneaux Dispo/Réf et repérages des cellules activités. */
+.planning .mission-head{height:4mm;font-size:6.4pt;font-weight:400;padding:0 .35mm;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.planning .mission-head span{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;line-height:3.5mm}
+.planning .mission-ref{background:#FFE1BF}
+.planning .mission-dispo{background:#ffffff}
+.planning .mission-dispo span{box-shadow:inset 0 0 0 3px #56A86C}
+.planning tbody td.activities.marked-ref{background:#FFE1BF!important}
+.planning tbody td.activities.marked-dispo{outline:3px solid #56A86C;outline-offset:-3px}
+.legend .swatch.dispo-mark{background:transparent;border:3px solid #56A86C}
+.legend .swatch.ref-mark{background:#FFE1BF;border:.5px solid #888}
+.legend .swatch.both-mark{background:#FFE1BF;border:3px solid #56A86C}
