@@ -37,7 +37,7 @@ button.secondary{color:#173b63;background:white}button:disabled{opacity:.45;curs
 .planning .day-label{height:8mm;color:white;font-size:12pt;font-weight:700}
 .planning .half-label{height:7mm;background:#eef2f5;font-size:8.5pt}
 .planning .type-label{height:7mm;background:#eaf2fa;font-size:7pt;font-weight:700}
-.planning .type-label.rehab-header{background:#fff;color:#111}
+.planning .type-label.rehab-header{background:#eaf2fa;color:#111}
 .planning th.name-col,.planning th.num-col{background:#dceaf7;color:#172c44;font-weight:700;font-size:10pt}
 /* V9.2 — La séparation sous les TROIS niveaux d'en-tête est un seul
    trait noir fort : de N° jusqu'au Kiné/Ortho du vendredi après-midi.
@@ -68,8 +68,8 @@ button.secondary{color:#173b63;background:white}button:disabled{opacity:.45;curs
 }
 .planning tbody tr{height:var(--row-mm);min-height:var(--row-mm);max-height:var(--row-mm);break-inside:avoid;page-break-inside:avoid}
 .planning tbody td{height:var(--row-mm);max-height:var(--row-mm);font-size:7.5pt}
-.planning tbody tr:nth-child(even) td:not(.rehab):not(.absent){background:var(--row-blue)}
-.planning tbody tr:nth-child(odd) td:not(.rehab):not(.absent){background:var(--row-white)}
+.planning tbody tr:nth-child(even) td:not(.absent){background:var(--row-blue)}
+.planning tbody tr:nth-child(odd) td:not(.absent){background:var(--row-white)}
 .planning tbody td.number{font-weight:700;text-align:center;font-size:8pt}
 .planning tbody td.user{padding:0 1mm;font-size:8pt;font-weight:700;text-align:left;white-space:normal;overflow-wrap:anywhere;line-height:1.05}
 .planning .user-label{display:block;width:100%;line-height:1.05;overflow-wrap:anywhere}
@@ -85,7 +85,7 @@ button.secondary{color:#173b63;background:white}button:disabled{opacity:.45;curs
 .activity-name{display:block;font-weight:700;font-size:6.65pt;line-height:1.0}
 .activity-staff{display:block;font-size:5.25pt;margin-top:0;line-height:1.0}
 .open-tag{font-size:1em;font-weight:900;color:#344f70;white-space:nowrap}
-.planning .rehab{background:#ffffff!important;text-align:center;font-weight:700;font-size:7pt;white-space:normal;line-height:1.06;overflow:hidden}
+.planning .rehab{background:transparent;text-align:center;font-weight:700;font-size:7pt;white-space:normal;line-height:1.06;overflow:hidden}
 .rehab-entry{display:block;white-space:nowrap;font-size:7pt}
 .planning .absent{background:var(--absent)!important;text-align:center;font-size:9pt;font-weight:700}
 @media screen {
@@ -199,12 +199,17 @@ button.secondary{color:#173b63;background:white}button:disabled{opacity:.45;curs
 }
 
 /* Seuls les nouveaux repères sont ajoutés. Les couleurs alternées restent intactes. */
-.planning .half-label{height:7mm;font-size:6.7pt;line-height:1.05}
-.half-title{height:2.0mm;font-weight:bold;border-bottom:.18mm solid #5d6873;box-sizing:border-box}
-.mission-dispo,.mission-ref{height:2.2mm;line-height:2.1mm;font-size:5.3pt;text-align:left;padding:0 .5mm;white-space:nowrap;overflow:hidden}
+.planning .half-label{height:7mm;font-size:8pt;line-height:1.05}
+.half-title{height:2.7mm;font-size:8pt;line-height:1;display:flex;align-items:center;justify-content:center;font-weight:bold;border-bottom:.18mm solid #5d6873;box-sizing:border-box}
+.mission-dispo,.mission-ref{height:2.1mm;line-height:2.1mm;font-size:5.3pt;text-align:left;padding:0 .5mm;white-space:nowrap;overflow:hidden}
 .mission-dispo,.mission-ref{border:0;background:transparent}
 .marker-dot{display:inline;font-size:7pt;white-space:nowrap;vertical-align:baseline}
 .open-tag{white-space:nowrap}
 
 /* Lisibilité Temps libre sans modifier les dimensions des cellules. */
 .activity-name.free-activity-name{font-size:8pt}
+
+/* Les pastilles concernent le créneau entier, jamais chaque activité. */
+.events{position:relative}
+.cell-markers{position:absolute;right:.3mm;bottom:.12mm;font-size:7pt;line-height:1;white-space:nowrap;background:transparent}
+.ref-pro{white-space:nowrap}
