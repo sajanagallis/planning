@@ -524,7 +524,7 @@
       data-activity-staff="${esc(event.staff||'')}"
       aria-label="${esc(event.open?'Groupe ouvert proposé : '+event.name:'Afficher les participants inscrits à '+event.name)}"
       title="${esc(event.name+(showStaff?' — '+event.staff:'')+(event.open?' (groupe ouvert, inscription non confirmée)':''))}">
-      <span class="activity-name">${event.open?'<span class="open-tag" aria-label="Activité ouverte proposée" title="Activité ouverte (non inscrite)">🚪🚶 </span>':''}${esc(isFree(event.name)?'Temps libre':event.name)}${markerHtml(flags)}</span>
+      <span class="activity-name${isFree(event.name)?' free-activity-name':''}">${event.open?'<span class="open-tag" aria-label="Activité ouverte proposée" title="Activité ouverte (non inscrite)">🚪🚶 </span>':''}${esc(isFree(event.name)?'Temps libre':event.name)}${flags.dispo||flags.ref?'&nbsp;&nbsp;':''}${markerHtml(flags)}</span>
       ${showStaff?`<span class="activity-staff">${esc(event.staff)}</span>`:''}
     </div>`;
   }
@@ -774,7 +774,7 @@
       let factor=1;
       while(wrapper.scrollHeight>wrapper.clientHeight+1 && factor>.65){
         factor=Math.max(.65,+(factor-.03).toFixed(2));
-        names.forEach(el=>el.style.fontSize=(6.65*factor).toFixed(2)+'pt');
+        names.forEach(el=>el.style.fontSize=((el.classList.contains('free-activity-name')?8:6.65)*factor).toFixed(2)+'pt');
         staffs.forEach(el=>el.style.fontSize=(5.25*factor).toFixed(2)+'pt');
       }
       if(wrapper.scrollHeight>wrapper.clientHeight+1){
@@ -1032,8 +1032,9 @@
         segments = [];
         for (const item of list) {
           const label = isFree(item.name) ? 'Temps libre' : item.name;
-          const nameLines = splitLines(label, namePt, w - 1.1 - (item.open ? 2.8 : 0) - 3, true);
-          nameLines.forEach((v, index) => segments.push({value:v, size:namePt, bold:true, open:item.open && index===0, end:index===nameLines.length-1}));
+          const itemNamePt = isFree(item.name) ? Math.max(namePt, 7.8) : namePt;
+          const nameLines = splitLines(label, itemNamePt, w - 1.1 - (item.open ? 2.8 : 0) - 3, true);
+          nameLines.forEach((v, index) => segments.push({value:v, size:itemNamePt, bold:true, open:item.open && index===0, end:index===nameLines.length-1}));
           if (item.staff && !noStaff(item.name) && !isFree(item.name)) {
             splitLines(item.staff, staffPt, w - 1.1, false).forEach(v => segments.push({value:v, size:staffPt, bold:false}));
           }
@@ -1075,13 +1076,14 @@
         const hx = x + hi * halfW;
         box(hx, 20, halfW, 7, '#eef2f5');
         center(HALVES[hi].label, hx, 20, halfW, 2.5, 7, true);
+        line(hx+.35,22.35,hx+halfW-.35,22.35,.18,'#5d6873');
         const disp=missionLabel(model,d,HALVES[hi],'dispo');
         const refs=missionLabel(model,d,HALVES[hi],'ref');
         // Le bloc Réf / Dispo tient DANS les 7 mm existants de l'en-tête.
         pdfDot(hx+1.1,23.55,'#21b94b',1.35);
-        write('Dispo : '+disp,hx+2.3,22.6,4.2);
+        write('Dispo : '+disp,hx+2.3,22.6,5.2);
         pdfDot(hx+1.1,25.70,'#f28b19',1.35);
-        write('Réf : '+refs,hx+2.3,24.75,4.2);
+        write('Réf : '+refs,hx+2.3,24.75,5.2);
         box(hx, 27, actW, 7, '#eaf2fa');
         box(hx + actW, 27, rehabW, 7, '#ffffff');
         center('Activités', hx, 27, actW, 7, 6.8, true);

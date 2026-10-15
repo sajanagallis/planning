@@ -200,8 +200,11 @@ button.secondary{color:#173b63;background:white}button:disabled{opacity:.45;curs
 
 /* Seuls les nouveaux repères sont ajoutés. Les couleurs alternées restent intactes. */
 .planning .half-label{height:7mm;font-size:6.7pt;line-height:1.05}
-.half-title{height:2.0mm;font-weight:bold}
-.mission-dispo,.mission-ref{height:2.2mm;line-height:2.1mm;font-size:4.1pt;text-align:left;padding:0 .5mm;white-space:nowrap;overflow:hidden}
+.half-title{height:2.0mm;font-weight:bold;border-bottom:.18mm solid #5d6873;box-sizing:border-box}
+.mission-dispo,.mission-ref{height:2.2mm;line-height:2.1mm;font-size:5.3pt;text-align:left;padding:0 .5mm;white-space:nowrap;overflow:hidden}
 .mission-dispo,.mission-ref{border:0;background:transparent}
 .marker-dot{display:inline;font-size:7pt;white-space:nowrap;vertical-align:baseline}
 .open-tag{white-space:nowrap}
+
+/* Lisibilité Temps libre sans modifier les dimensions des cellules. */
+.activity-name.free-activity-name{font-size:8pt}
