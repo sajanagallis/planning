@@ -202,7 +202,6 @@ button.secondary{color:#173b63;background:white}button:disabled{opacity:.45;curs
 .planning .half-label{height:7mm;font-size:6.7pt;line-height:1.05}
 .half-title{height:2.0mm;font-weight:bold}
 .mission-dispo,.mission-ref{height:2.2mm;line-height:2.1mm;font-size:4.1pt;text-align:left;padding:0 .5mm;white-space:nowrap;overflow:hidden}
-.mission-dispo{border:1px solid #56a86c}
-.mission-ref{background:#ffe1bf}
+.mission-dispo,.mission-ref{border:0;background:transparent}
 .marker-dot{display:inline;font-size:7pt;white-space:nowrap;vertical-align:baseline}
 .open-tag{white-space:nowrap}

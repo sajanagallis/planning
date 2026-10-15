@@ -552,7 +552,7 @@
     document.documentElement.style.setProperty('--row-mm',`${Math.max(minRow,target).toFixed(2)}mm`);
     if(model.people.length&&target<minRow)model.errors.push('Nombre d’usagers trop élevé pour garder des cases lisibles sur une page A3.');
     const dayHeads=DAYS.map(d=>`<th colspan="4" class="day-label day-start" style="background:${dayColor(d)}">${esc(d.label)}</th>`).join('');
-    const periodHeads=DAYS.map(d=>HALVES.map(h=>`<th colspan="2" class="half-label ${h.value==='matin'?'day-start':'half-start'}"><div class="half-title">${esc(h.label)}</div><div class="mission-dispo" title="Dispo : ${esc(missionLabel(model,d,h,'dispo'))}">Dispo : ${esc(missionLabel(model,d,h,'dispo'))}</div><div class="mission-ref" title="Réf : ${esc(missionLabel(model,d,h,'ref'))}">Réf : ${esc(missionLabel(model,d,h,'ref'))}</div></th>`).join('')).join('');
+    const periodHeads=DAYS.map(d=>HALVES.map(h=>`<th colspan="2" class="half-label ${h.value==='matin'?'day-start':'half-start'}"><div class="half-title">${esc(h.label)}</div><div class="mission-dispo" title="Dispo : ${esc(missionLabel(model,d,h,'dispo'))}"><span aria-hidden="true">🟢</span> Dispo : ${esc(missionLabel(model,d,h,'dispo'))}</div><div class="mission-ref" title="Réf : ${esc(missionLabel(model,d,h,'ref'))}"><span aria-hidden="true">🟠</span> Réf : ${esc(missionLabel(model,d,h,'ref'))}</div></th>`).join('')).join('');
     const types=DAYS.map(d=>HALVES.map(h=>`<th class="type-label ${h.value==='matin'?'day-start':'half-start'}">Activités</th><th class="type-label rehab-header">Kiné / Ortho</th>`).join('')).join('');
     const body=model.people.map((p,i)=>{
       let tds='';
@@ -1078,10 +1078,10 @@
         const disp=missionLabel(model,d,HALVES[hi],'dispo');
         const refs=missionLabel(model,d,HALVES[hi],'ref');
         // Le bloc Réf / Dispo tient DANS les 7 mm existants de l'en-tête.
-        frame(hx+.2,22.5,halfW-.4,2.1,.18,'#56a86c');
-        write('Dispo : '+disp,hx+.6,22.6,4.2);
-        box(hx+.2,24.65,halfW-.4,2.1,'#ffe1bf');
-        write('Réf : '+refs,hx+.6,24.75,4.2);
+        pdfDot(hx+1.1,23.55,'#21b94b',1.35);
+        write('Dispo : '+disp,hx+2.3,22.6,4.2);
+        pdfDot(hx+1.1,25.70,'#f28b19',1.35);
+        write('Réf : '+refs,hx+2.3,24.75,4.2);
         box(hx, 27, actW, 7, '#eaf2fa');
         box(hx + actW, 27, rehabW, 7, '#ffffff');
         center('Activités', hx, 27, actW, 7, 6.8, true);
