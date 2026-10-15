@@ -14,7 +14,7 @@
     animators:'Animateurs', days:'Jours_de_la_semaine', hours:'Heures',
     reeducations:'Reeducations', rehabTypes:'Activites_autres',
     annualPresence:'Presences_annuelles', forecasts:'Planning_previsionnel',
-    missions:'Missions_annexes', halfdays:'Demi_journees', referents:'Referent'
+    missions:'Missions_annexes', missionSlots:'Demi_journees', references:'Referent'
   };
   const REQUIRED = ['users','years','activities','participations','animators','days','hours','reeducations','rehabTypes'];
   const DAYS = [
@@ -25,7 +25,6 @@
     {i:5, label:'Vendredi',flag:'Ve',color:'#d65158'}
   ];
   const HALVES = [{value:'matin',label:'Matin'},{value:'apres-midi',label:'Après-midi'}];
-  const DISPO_GREEN='#56A86C',REF_ORANGE='#FFE1BF';
   const CUTOFF=12*60+30;
   const state={raw:{},byId:{},columns:{},existing:[],yearId:null,currentYearId:null,userId:null,
     activitySelection:null,selectionMessage:"",popoverAnchor:null,imageRequestId:0,loaded:false,loading:false,paper:'a3',model:null,refreshTimer:null};
@@ -324,6 +323,42 @@
     }catch(e){console.error(e);show('Impossible de charger le planning : '+(e?.message||e),true);$('sheet').hidden=true;warnings([]);}
     finally{state.loading=false;$('refreshBtn').disabled=false;}
   }
+  // Créneaux explicites de la table Missions_annexes, sans déduction depuis le planning des animateurs.
+  function missionIndex(notes){
+    const slots=new Map(), refUsers=new Map();
+    for(const row of state.raw.references||[]){
+      const user=ref(row.Usagers),pro=ref(row.Referent); // Co_referent volontairement ignoré
+      if(user&&pro){if(!refUsers.has(pro))refUsers.set(pro,new Set());refUsers.get(pro).add(user);}
+    }
+    for(const row of state.raw.missions||[]){
+      const pro=ref(row.Animateurs),staff=state.byId.animators?.get(pro);
+      const slot=state.byId.missionSlots?.get(ref(row.Creneau_de_mission_annexe));
+      const label=text(slot?.Demi_journee)||text(row.gristHelper_Display2);
+      const n=norm(label);
+      const d=DAYS.find(d=>n.includes(norm(d.label))||n.includes(norm(d.label).slice(0,3)));
+      const half=halfFrom('',label);
+      const type=norm(row.Type_de_mission_annexe);
+      const kind=type.includes('dispo')?'dispo':type.includes('reference')?'ref':null;
+      if(!pro||!staff||!d||!half||!kind){notes.push('Mission annexe incomplète : vérifier animateur, jour, demi-journée et type.');continue;}
+      const key=`${d.i}|${half}`;
+      if(!slots.has(key))slots.set(key,{dispo:[],ref:[]});
+      if(!slots.get(key)[kind].some(x=>x.id===pro))slots.get(key)[kind].push({id:pro,name:shortStaffName(staff)});
+    }
+    return {slots,refUsers};
+  }
+  function markers(model,person,day,half){
+    if(person.flags?.[day.i-1]===false)return {dispo:false,ref:false};
+    const mission=model.missions.slots.get(`${day.i}|${half.value}`)||{dispo:[],ref:[]};
+    const cell=model.cells.get(`${person.id}|${day.i}|${half.value}`);
+    const list=cell?.activities||[];
+    const dispo=!!mission.dispo.length && (!list.length || list.some(a=>isFree(a.name)||a.open));
+    const reference=mission.ref.some(pro=>model.missions.refUsers.get(pro.id)?.has(person.id));
+    return {dispo,ref:reference};
+  }
+  function missionLabel(model,day,half,kind){
+    return (model.missions.slots.get(`${day.i}|${half.value}`)?.[kind]||[]).map(p=>p.name).join(' · ')||'—';
+  }
+  function markerHtml(flags){return `${flags.dispo?'<span class="marker-dot" aria-label="Dispo">🟢</span>':''}${flags.ref?'<span class="marker-dot" aria-label="Référent principal">🟠</span>':''}`;}
   function modelForYear(){
     const errors=[],notes=[];
     const year=state.byId.years.get(Number(state.yearId));
@@ -476,57 +511,10 @@
       const hidden=[...cells.values()].reduce((n,c)=>n+Math.max(0,c.activities.length-2),0);
       notes.push(`${hidden} activité(s) inscrite(s) supplémentaires non affichée(s) : seules les 2 premières par demi-journée sont retenues (heure de début, puis nom).`);
     }
-    return {year,people,cells,errors,notes,activityCount,rehabCount,maxEntries,openSlots,proposedOpen,
-      responsibility:responsibilities(people,notes)};
+    const missions=missionIndex(notes);
+    return {year,people,cells,missions,errors,notes:unique(notes),activityCount,rehabCount,maxEntries,openSlots,proposedOpen};
   }
-  // Affectations réelles : Missions_annexes (Réference/Dispo) et Referent.
-  // La lecture repose sur les références Grist, jamais sur un prénom déduit.
-  function responsibilities(people,notes){
-    const slots=new Map(),referents=new Map();
-    for(const row of state.raw.referents||[]){
-      const uid=ref(row.Usagers);
-      if(!uid)continue;
-      referents.set(uid,new Set([...refs(row.Referent),...refs(row.Co_referent)]));
-    }
-    for(const row of state.raw.missions||[]){
-      const typ=norm(row.Type_de_mission_annexe);
-      const kind=typ==='dispo'?'dispo':/^(reference|referent|ref)$/.test(typ)?'ref':null;
-      if(!kind)continue;
-      const staff=ref(row.Animateurs),slot=state.byId.halfdays?.get(ref(row.Creneau_de_mission_annexe));
-      if(!staff||!slot)continue;
-      const d=dayFrom(slot.Jour,0);
-      const label=norm(slot.Demi_journee);
-      const half= /apres midi|apresmidi|apm/.test(label)?'apres-midi':/matin/.test(label)?'matin':halfFrom(state.byId.hours?.get(ref(slot.Heure))?.Heures,'');
-      if(!d||!half){notes.push(`Créneau de mission non identifié (mission ${row.id}).`);continue;}
-      const key=`${d}|${half}`;
-      if(!slots.has(key))slots.set(key,{dispo:new Set(),ref:new Set()});
-      slots.get(key)[kind].add(staff);
-    }
-    const labels=new Map();
-    for(const [key,slot] of slots){
-      labels.set(key,{
-        dispo:[...slot.dispo].map(id=>state.byId.animators.get(id)).filter(Boolean).map(shortStaffName).join(' · '),
-        ref:[...slot.ref].map(id=>state.byId.animators.get(id)).filter(Boolean).map(shortStaffName).join(' · '),
-        dispoIds:slot.dispo,refIds:slot.ref
-      });
-    }
-    return {slots:labels,referents};
-  }
-  function responsibilityFor(person,day,half,record){
-    const slot=state.model?.responsibility?.slots.get(`${day}|${half}`);
-    if(!slot)return {dispo:false,reference:false};
-    const activities=record?.activities||[];
-    const free=activities.length===0||activities.every(a=>a.open||isFree(a.name));
-    const refsForPerson=state.model.responsibility.referents.get(person.id)||new Set();
-    return {dispo:slot.dispoIds.size>0&&free,
-      reference:[...slot.refIds].some(id=>refsForPerson.has(id))};
-  }
-  function slotHeader(day,half,kind){
-    const entry=state.model.responsibility.slots.get(`${day}|${half}`);
-    const label=kind==='dispo'?'Dispo':'Réf';
-    return `<th colspan="2" class="mission-head ${kind==='dispo'?'mission-dispo':'mission-ref'}" title="${esc(label+': '+(entry?.[kind]||'Non renseigné'))}"><span>${esc(label+' : '+(entry?.[kind]||'—'))}</span></th>`;
-  }
-  function renderEvent(event){
+  function renderEvent(event,flags){
     const showStaff=!noStaff(event.name)&&!isFree(event.name)&&!!event.staff;
     // Chaque libellé porte le nom normalisé de l’activité. Le clic ne
     // sélectionne QUE les inscriptions confirmées du même jour et créneau.
@@ -536,18 +524,17 @@
       data-activity-staff="${esc(event.staff||'')}"
       aria-label="${esc(event.open?'Groupe ouvert proposé : '+event.name:'Afficher les participants inscrits à '+event.name)}"
       title="${esc(event.name+(showStaff?' — '+event.staff:'')+(event.open?' (groupe ouvert, inscription non confirmée)':''))}">
-      <span class="activity-name">${esc(isFree(event.name)?'Temps libre':event.name)}${event.open?'<span class="open-tag" aria-label="Activité ouverte proposée" title="Activité ouverte (non inscrite)"> ◇</span>':''}</span>
+      <span class="activity-name">${event.open?'<span class="open-tag" aria-label="Activité ouverte proposée" title="Activité ouverte (non inscrite)">🚪🚶 </span>':''}${esc(isFree(event.name)?'Temps libre':event.name)}${markerHtml(flags)}</span>
       ${showStaff?`<span class="activity-staff">${esc(event.staff)}</span>`:''}
     </div>`;
   }
   function cellsFor(person,day,half){
     const halfStart=half.value==='matin'?'day-start':'half-start';
     const b=state.model.cells.get(`${person.id}|${day.i}|${half.value}`)||{activities:[],rehab:[]};
-    const marks=responsibilityFor(person,day.i,half.value,b);
-    const marker=(marks.dispo?' marked-dispo':'')+(marks.reference?' marked-ref':'');
-    const acts=b.activities.slice(0,2).map(renderEvent).join('');
+    const flags=markers(state.model,person,day,half);
+    const acts=b.activities.slice(0,2).map(e=>renderEvent(e,flags)).join('')||markerHtml(flags);
     const kine=b.rehab.map(e=>`<span class="rehab-entry" title="${esc(e.kind+' '+e.hour)}">${esc(e.hour)}</span>`).join('');
-    return `<td class="activities ${halfStart}${marker}" data-day="${esc(day.label)}" data-day-index="${day.i}" data-half="${esc(half.label)}" data-half-value="${half.value}"><div class="events">${acts}</div></td>
+    return `<td class="activities ${halfStart}" data-day="${esc(day.label)}" data-day-index="${day.i}" data-half="${esc(half.label)}" data-half-value="${half.value}"><div class="events">${acts}</div></td>
       <td class="rehab" data-day="${esc(day.label)}" data-half="${esc(half.label)}" title="${esc(b.rehab.map(x=>x.kind+' '+x.hour).join(' / '))}">${kine}</td>`;
   }
   function render(){
@@ -565,9 +552,7 @@
     document.documentElement.style.setProperty('--row-mm',`${Math.max(minRow,target).toFixed(2)}mm`);
     if(model.people.length&&target<minRow)model.errors.push('Nombre d’usagers trop élevé pour garder des cases lisibles sur une page A3.');
     const dayHeads=DAYS.map(d=>`<th colspan="4" class="day-label day-start" style="background:${dayColor(d)}">${esc(d.label)}</th>`).join('');
-    const periodHeads=DAYS.map(d=>HALVES.map(h=>`<th colspan="2" class="half-label ${h.value==='matin'?'day-start':'half-start'}">${esc(h.label)}</th>`).join('')).join('');
-    const dispoHeads=DAYS.map(d=>HALVES.map(h=>slotHeader(d.i,h.value,'dispo')).join('')).join('');
-    const refHeads=DAYS.map(d=>HALVES.map(h=>slotHeader(d.i,h.value,'ref')).join('')).join('');
+    const periodHeads=DAYS.map(d=>HALVES.map(h=>`<th colspan="2" class="half-label ${h.value==='matin'?'day-start':'half-start'}"><div class="half-title">${esc(h.label)}</div><div class="mission-dispo" title="Dispo : ${esc(missionLabel(model,d,h,'dispo'))}">Dispo : ${esc(missionLabel(model,d,h,'dispo'))}</div><div class="mission-ref" title="Réf : ${esc(missionLabel(model,d,h,'ref'))}">Réf : ${esc(missionLabel(model,d,h,'ref'))}</div></th>`).join('')).join('');
     const types=DAYS.map(d=>HALVES.map(h=>`<th class="type-label ${h.value==='matin'?'day-start':'half-start'}">Activités</th><th class="type-label rehab-header">Kiné / Ortho</th>`).join('')).join('');
     const body=model.people.map((p,i)=>{
       let tds='';
@@ -579,8 +564,8 @@
     }).join('');
     const html=`<table class="planning" aria-label="Planning général SAJ Anagallis"><colgroup>
       <col style="width:7mm"><col style="width:34mm">${Array.from({length:10},()=>'<col style="width:29.3mm"><col style="width:7.5mm">').join('')}</colgroup>
-      <thead><tr><th rowspan="5" class="num-col">N°</th><th rowspan="5" class="name-col">Usagers</th>${dayHeads}</tr>
-      <tr>${periodHeads}</tr><tr>${dispoHeads}</tr><tr>${refHeads}</tr><tr>${types}</tr></thead><tbody>${body}</tbody></table>`;
+      <thead><tr><th rowspan="3" class="num-col">N°</th><th rowspan="3" class="name-col">Usagers</th>${dayHeads}</tr>
+      <tr>${periodHeads}</tr><tr>${types}</tr></thead><tbody>${body}</tbody></table>`;
     $('tableHost').innerHTML=html;$('sheet').hidden=false;
     applyHighlights();
     // Ligne identique pour tous les usagers : chaque zone d'activités est bornée
@@ -774,7 +759,7 @@
     state.userId=null;state.selectionMessage='';
     if(same){state.activitySelection=null;applyHighlights();return;}
     state.activitySelection={id:activityId,name,day,half,staff:item.dataset.activityStaff||'',
-      display:item.querySelector('.activity-name')?.textContent.replace(/◇/g,'').trim()||name};
+      display:item.querySelector('.activity-name')?.textContent.replace(/🚪|🚶|🟢|🟠/gu,'').trim()||name};
     // Même si le libellé est proposé au titre d'un groupe ouvert, seules les
     // inscriptions CONFIRMÉES comptent dans la liste et le surlignage.
     applyHighlights();
@@ -903,14 +888,6 @@
     if(problems.length){warnings([...state.model.errors,...state.model.notes,...problems]);show('Impression suspendue : '+problems.join(' '),true);return false;}
     return true;
   }
-  function responsibilityForPdf(model,p,d,half,record){
-    const s=model.responsibility.slots.get(`${d}|${half}`);
-    if(!s)return {dispo:false,reference:false};
-    const acts=record?.activities||[];
-    const refs=model.responsibility.referents.get(p.id)||new Set();
-    return {dispo:s.dispoIds.size>0&&(acts.length===0||acts.every(a=>a.open||isFree(a.name))),
-      reference:[...s.refIds].some(id=>refs.has(id))};
-  }
   // Export PDF autonome et local : aucune fenêtre d'impression et aucun serveur tiers.
   // Dessin vectoriel : textes, cellules, couleurs et bordures restent nets à l'agrandissement.
   function makePdfBytes(model, format) {
@@ -921,7 +898,7 @@
     const ptPerMm = 72 / 25.4;
     const logicalW = 410;
     const rowH = Math.max(5.5, Math.min(10.4, 243 / model.people.length));
-    const tableTop = 12, headH = 30;
+    const tableTop = 12, headH = 22;
     const tableBottom = tableTop + headH + rowH * model.people.length;
     const totalH = tableBottom + 10;
     const scale = Math.min((pageW - 10) / logicalW, (pageH - 10) / totalH) * 0.998;
@@ -1001,6 +978,22 @@
     function center(s, x, y, w, h, fs = 7, bold = false, ink = '#111111') {
       write(s, x + w / 2, y + h / 2 - fs / ptPerMm * .51, fs, bold, ink, 'center');
     }
+    function pdfDot(x,y,ink,size=.72){
+      // Cercle vectoriel utilisable par PDF 1.4 (Helvetica ne connaît pas les emojis).
+      const rr=size/2,k=.55228475*rr;
+      commands.push(`${rgb(ink)} rg ${px(x+rr)} ${py(y)} m ${px(x+rr)} ${py(y-k)} ${px(x+k)} ${py(y-rr)} ${px(x)} ${py(y-rr)} c ${px(x-k)} ${py(y-rr)} ${px(x-rr)} ${py(y-k)} ${px(x-rr)} ${py(y)} c ${px(x-rr)} ${py(y+k)} ${px(x-k)} ${py(y+rr)} ${px(x)} ${py(y+rr)} c ${px(x+k)} ${py(y+rr)} ${px(x+rr)} ${py(y+k)} ${px(x+rr)} ${py(y)} c f`);
+    }
+    function pdfPictos(x,y){
+      // Mini pictogramme porte + marcheur; vectoriel, sans caractères non pris en charge.
+      frame(x,y-1.5,.9,2.0,.14,'#79533a');
+      pdfDot(x+.67,y-.45,'#79533a',.15);
+      pdfDot(x+1.75,y-.98,'#32618f',.32);
+      line(x+1.75,y-.78,x+1.75,y-.05,.17,'#32618f');
+      line(x+1.75,y-.55,x+1.3,y-.18,.15,'#32618f');
+      line(x+1.75,y-.5,x+2.13,y-.22,.15,'#32618f');
+      line(x+1.75,y-.05,x+1.33,y+.5,.17,'#32618f');
+      line(x+1.75,y-.05,x+2.1,y+.5,.17,'#32618f');
+    }
     function diamond(x, y, size = 1.0, ink = '#344f70') {
       commands.push(`${rgb(ink)} RG ${pr(.18)} w ${px(x)} ${py(y - size / 2)} m ${px(x + size / 2)} ${py(y)} l ${px(x)} ${py(y + size / 2)} l ${px(x - size / 2)} ${py(y)} l h S`);
     }
@@ -1026,17 +1019,21 @@
       const yStart = y + Math.max(0, (h - display.length * lineH) / 2);
       display.forEach((txt, i) => write(txt, x, yStart + i * lineH, sz, bold, ink));
     }
-    function cellEvents(activities, x, y, w, h) {
+    function cellEvents(activities, x, y, w, h,flags={}) {
       const list = (activities || []).slice(0, 2);
-      if (!list.length) return;
+      if (!list.length) {
+        if(flags.dispo)pdfDot(x+w-2.6,y+h/2,'#21b94b',1.6);
+        if(flags.ref)pdfDot(x+w-1.0,y+h/2,'#f28b19',1.6);
+        return;
+      }
       let namePt = 6.6, staffPt = 5.1;
       let segments;
       for (let tries = 0; tries < 10; tries++) {
         segments = [];
         for (const item of list) {
           const label = isFree(item.name) ? 'Temps libre' : item.name;
-          const nameLines = splitLines(label, namePt, w - 1.1 - (item.open ? 1.7 : 0), true);
-          nameLines.forEach((v, index) => segments.push({value:v, size:namePt, bold:true, open:item.open && index===nameLines.length-1}));
+          const nameLines = splitLines(label, namePt, w - 1.1 - (item.open ? 2.8 : 0) - 3, true);
+          nameLines.forEach((v, index) => segments.push({value:v, size:namePt, bold:true, open:item.open && index===0, end:index===nameLines.length-1}));
           if (item.staff && !noStaff(item.name) && !isFree(item.name)) {
             splitLines(item.staff, staffPt, w - 1.1, false).forEach(v => segments.push({value:v, size:staffPt, bold:false}));
           }
@@ -1051,10 +1048,11 @@
       for (const item of segments) {
         const lineHeight = item.size * 1.09 / ptPerMm;
         if (top + lineHeight > y + h - .2) break;
-        write(item.value, x + .45, top, item.size, item.bold);
-        if (item.open) {
-          const end = x + .45 + widthMm(item.value, item.size, true) + .8;
-          if (end + .6 < x + w) diamond(end, top + lineHeight * .48, .85);
+        if(item.open)pdfPictos(x+.40,top+lineHeight*.55);
+        write(item.value, x + (item.open?3.1:.45), top, item.size, item.bold);
+        if(item.end){
+          if(flags.dispo)pdfDot(x+w-2.6,top+lineHeight*.53,'#21b94b',1.35);
+          if(flags.ref)pdfDot(x+w-1.0,top+lineHeight*.53,'#f28b19',1.35);
         }
         top += lineHeight;
       }
@@ -1065,10 +1063,10 @@
     center(`Planning SAJ Anagallis   ${yr}`, 0, 0, 410, 12, 16, true, '#ffffff');
     const numW = 7, userW = 35, dayX0 = numW + userW, dayW = 73.6;
     const actW = 29.3, rehabW = 7.5, halfW = actW + rehabW;
-    box(0, 12, numW, headH, '#dceaf7');
-    box(numW, 12, userW, headH, '#dceaf7');
-    center('N°', 0, 12, numW, headH, 9, true, '#172c44');
-    center('Usagers', numW, 12, userW, headH, 10, true, '#172c44');
+    box(0, 12, numW, 22, '#dceaf7');
+    box(numW, 12, userW, 22, '#dceaf7');
+    center('N°', 0, 12, numW, 22, 9, true, '#172c44');
+    center('Usagers', numW, 12, userW, 22, 10, true, '#172c44');
     for (let di = 0; di < 5; di++) {
       const d = DAYS[di], x = dayX0 + di * dayW;
       box(x, 12, dayW, 8, dayColor(d));
@@ -1076,24 +1074,24 @@
       for (let hi = 0; hi < 2; hi++) {
         const hx = x + hi * halfW;
         box(hx, 20, halfW, 7, '#eef2f5');
-        center(HALVES[hi].label, hx, 20, halfW, 7, 8.5, true);
-        const mission= model.responsibility.slots.get(`${d.i}|${HALVES[hi].value}`);
-        box(hx,27,halfW,4,'#ffffff');
-        box(hx,31,halfW,4,REF_ORANGE);
-        const dispoLabel='Dispo : '+(mission?.dispo||'—'),refLabel='Réf : '+(mission?.ref||'—');
-        textBlock(dispoLabel,hx+.4,27.05,halfW-.8,3.75,6,false,'#111111',1,4.4);
-        frame(hx+.15,27.15,halfW-.3,3.7,.38,DISPO_GREEN);
-        textBlock(refLabel,hx+.4,31.05,halfW-.8,3.75,6,false,'#111111',1,4.4);
-        box(hx,35,actW,7,'#eaf2fa');
-        box(hx + actW, 35, rehabW, 7, '#7846b8');
-        center('Activités', hx, 35, actW, 7, 6.8, true);
-        center('Kiné /', hx + actW, 36, rehabW, 3, 5.5, true, '#ffffff');
-        center('Ortho', hx + actW, 39, rehabW, 3, 5.5, true, '#ffffff');
+        center(HALVES[hi].label, hx, 20, halfW, 2.5, 7, true);
+        const disp=missionLabel(model,d,HALVES[hi],'dispo');
+        const refs=missionLabel(model,d,HALVES[hi],'ref');
+        // Le bloc Réf / Dispo tient DANS les 7 mm existants de l'en-tête.
+        frame(hx+.2,22.5,halfW-.4,2.1,.18,'#56a86c');
+        write('Dispo : '+disp,hx+.6,22.6,4.2);
+        box(hx+.2,24.65,halfW-.4,2.1,'#ffe1bf');
+        write('Réf : '+refs,hx+.6,24.75,4.2);
+        box(hx, 27, actW, 7, '#eaf2fa');
+        box(hx + actW, 27, rehabW, 7, '#ffffff');
+        center('Activités', hx, 27, actW, 7, 6.8, true);
+        center('Kiné /', hx + actW, 28, rehabW, 3, 5.5, true, '#111111');
+        center('Ortho', hx + actW, 31, rehabW, 3, 5.5, true, '#111111');
       }
     }
     // Grille de données par usager, hauteur uniforme et absences sur journée.
     for (let ri = 0; ri < model.people.length; ri++) {
-      const p = model.people[ri], y = (tableTop+headH) + ri * rowH;
+      const p = model.people[ri], y = 34 + ri * rowH;
       const base = ri % 2 ? '#dff2ff' : '#ffffff';
       box(0, y, numW, rowH, base);
       box(numW, y, userW, rowH, base);
@@ -1107,12 +1105,10 @@
         } else {
           for (let hi = 0; hi < 2; hi++) {
             const half = HALVES[hi], xx = x + hi * halfW;
+            box(xx, y, actW, rowH, base);
+            box(xx + actW, y, rehabW, rowH, '#ffffff');
             const record = model.cells.get(`${p.id}|${d.i}|${half.value}`);
-            const flags=responsibilityForPdf(model,p,d.i,half.value,record);
-            box(xx, y, actW, rowH, flags.reference?REF_ORANGE:base);
-            if(flags.dispo)frame(xx+.12,y+.12,actW-.24,rowH-.24,.70,DISPO_GREEN);
-            box(xx + actW, y, rehabW, rowH, '#e9def6');
-            cellEvents(record?.activities || [], xx, y, actW, rowH);
+            cellEvents(record?.activities || [], xx, y, actW, rowH,markers(model,p,d,half));
             const appts = record?.rehab || [];
             if (appts.length) {
               const hours = appts.map(v => String(v.hour || '')).filter(Boolean);
@@ -1137,11 +1133,11 @@
       if (di) line(x, 12, x, tableBottom, .65);
       for (let hi = 0; hi < 2; hi++) {
         const hx = x + hi * halfW;
-        if (hi) line(hx, 20, hx, 42, .25);
-        line(hx + actW, 35, hx + actW, 42, .17);
+        if (hi) line(hx, 20, hx, 34, .25);
+        line(hx + actW, 27, hx + actW, 34, .17);
         // Des sous-colonnes sont masquées les jours où l'usager est absent.
         for (let ri = 0; ri < model.people.length; ri++) {
-          const y = (tableTop+headH) + ri * rowH;
+          const y = 34 + ri * rowH;
           if (model.people[ri].flags?.[di] === false) continue;
           if (hi) line(hx, y, hx, y + rowH, .3);
           line(hx + actW, y, hx + actW, y + rowH, .17);
@@ -1150,34 +1146,26 @@
     }
     line(410, 12, 410, tableBottom, .66);
     line(0, 12, 410, 12, .55);
-    line(0, tableTop+headH, 410, tableTop+headH, .66);
+    line(0, 34, 410, 34, .66);
     line(0, tableBottom, 410, tableBottom, .5);
     for (let di = 0; di < 5; di++) {
       const x = dayX0 + di * dayW;
       line(x, 20, x + dayW, 20, .16);
       line(x, 27, x + dayW, 27, .16);
-      line(x,35,x+dayW,35,.16);
-      line(x,39,x+dayW,39,.16);
     }
     // Légende et pied de page sans bandeaux inutiles.
     const footY = tableBottom + 2.0;
     write('Temps libre : uniquement si inscrit', 2, footY, 7.2);
-    diamond(91, footY + 1.0, 1.35);
-    write('groupe ouvert proposé', 93.5, footY, 7.2);
-    box(169, footY + .3, 3.8, 2.8, '#7846b8');
-    frame(169, footY + .3, 3.8, 2.8, .12);
-    write('Kiné / Ortho (début du RDV)', 175, footY, 7.2);
+    pdfPictos(91,footY+1.8);
+    write('groupe ouvert proposé', 94, footY, 7.0);
+    pdfDot(171,footY+1.4,'#21b94b',2.1);
+    write('Dispo', 174, footY, 7.0);
+    pdfDot(204,footY+1.4,'#f28b19',2.1);
+    write('Réf principal',207,footY,7.0);
     box(268, footY + .3, 3.8, 2.8, '#ffb64f');
     frame(268, footY + .3, 3.8, 2.8, .12);
     write('Absent (journée)', 274, footY, 7.2);
-    frame(2,tableBottom+5.3,5.4,3.5,.7,DISPO_GREEN);
-    write('Dispo',9,tableBottom+5.4,6.1);
-    box(27,tableBottom+5.3,5.4,3.5,REF_ORANGE);
-    write('Réf',34,tableBottom+5.4,6.1);
-    box(49,tableBottom+5.3,5.4,3.5,REF_ORANGE);
-    frame(49,tableBottom+5.3,5.4,3.5,.7,DISPO_GREEN);
-    write('Dispo + Réf',56,tableBottom+5.4,6.1);
-    write(`SAJ Anagallis · ${yr}`, 112, tableBottom + 6.5, 6.2, false, '#445566');
+    write(`SAJ Anagallis · ${yr}`, 2, tableBottom + 6.5, 6.2, false, '#445566');
     const stamp = new Intl.DateTimeFormat('fr-FR').format(new Date());
     write(`Édité le ${stamp}`, 408, tableBottom + 6.5, 6.2, false, '#445566', 'right');
     // Construction minimale et valide du PDF 1.4 : 1 page, 2 polices vectorielles.

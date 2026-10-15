@@ -37,7 +37,7 @@ button.secondary{color:#173b63;background:white}button:disabled{opacity:.45;curs
 .planning .day-label{height:8mm;color:white;font-size:12pt;font-weight:700}
 .planning .half-label{height:7mm;background:#eef2f5;font-size:8.5pt}
 .planning .type-label{height:7mm;background:#eaf2fa;font-size:7pt;font-weight:700}
-.planning .type-label.rehab-header{background:var(--rehab);color:white}
+.planning .type-label.rehab-header{background:#fff;color:#111}
 .planning th.name-col,.planning th.num-col{background:#dceaf7;color:#172c44;font-weight:700;font-size:10pt}
 /* V9.2 — La séparation sous les TROIS niveaux d'en-tête est un seul
    trait noir fort : de N° jusqu'au Kiné/Ortho du vendredi après-midi.
@@ -45,7 +45,7 @@ button.secondary{color:#173b63;background:white}button:disabled{opacity:.45;curs
 /* La bordure sous les en-têtes et au-dessus du premier usager doit être
    continue, y compris lorsque certaines cellules couvrent 4 colonnes. */
 .planning thead tr:last-child > th,
-.planning thead th[rowspan="5"]{
+.planning thead th[rowspan="3"]{
   border-bottom:2.4px solid #000!important;
 }
 .planning tbody tr:first-child > td{
@@ -85,7 +85,7 @@ button.secondary{color:#173b63;background:white}button:disabled{opacity:.45;curs
 .activity-name{display:block;font-weight:700;font-size:6.65pt;line-height:1.0}
 .activity-staff{display:block;font-size:5.25pt;margin-top:0;line-height:1.0}
 .open-tag{font-size:1em;font-weight:900;color:#344f70;white-space:nowrap}
-.planning .rehab{background:#e9def6;text-align:center;font-weight:700;font-size:7pt;white-space:normal;line-height:1.06;overflow:hidden}
+.planning .rehab{background:#ffffff!important;text-align:center;font-weight:700;font-size:7pt;white-space:normal;line-height:1.06;overflow:hidden}
 .rehab-entry{display:block;white-space:nowrap;font-size:7pt}
 .planning .absent{background:var(--absent)!important;text-align:center;font-size:9pt;font-weight:700}
 @media screen {
@@ -198,14 +198,11 @@ button.secondary{color:#173b63;background:white}button:disabled{opacity:.45;curs
   .participant-fullname{min-width:0;overflow-wrap:anywhere}
 }
 
-/* Ajouts isolés V9.6.2 : créneaux Dispo/Réf et repérages des cellules activités. */
-.planning .mission-head{height:4mm;font-size:6.4pt;font-weight:400;padding:0 .35mm;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.planning .mission-head span{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;line-height:3.5mm}
-.planning .mission-ref{background:#FFE1BF}
-.planning .mission-dispo{background:#ffffff}
-.planning .mission-dispo span{box-shadow:inset 0 0 0 3px #56A86C}
-.planning tbody td.activities.marked-ref{background:#FFE1BF!important}
-.planning tbody td.activities.marked-dispo{outline:3px solid #56A86C;outline-offset:-3px}
-.legend .swatch.dispo-mark{background:transparent;border:3px solid #56A86C}
-.legend .swatch.ref-mark{background:#FFE1BF;border:.5px solid #888}
-.legend .swatch.both-mark{background:#FFE1BF;border:3px solid #56A86C}
+/* Seuls les nouveaux repères sont ajoutés. Les couleurs alternées restent intactes. */
+.planning .half-label{height:7mm;font-size:6.7pt;line-height:1.05}
+.half-title{height:2.0mm;font-weight:bold}
+.mission-dispo,.mission-ref{height:2.2mm;line-height:2.1mm;font-size:4.1pt;text-align:left;padding:0 .5mm;white-space:nowrap;overflow:hidden}
+.mission-dispo{border:1px solid #56a86c}
+.mission-ref{background:#ffe1bf}
+.marker-dot{display:inline;font-size:7pt;white-space:nowrap;vertical-align:baseline}
+.open-tag{white-space:nowrap}
