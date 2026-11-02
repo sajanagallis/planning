@@ -18,11 +18,11 @@
   };
   const REQUIRED = ['users','years','activities','participations','animators','days','hours','reeducations','rehabTypes'];
   const DAYS = [
-    {i:1, label:'Lundi',flag:'Lu', color:'#159fdc'},
-    {i:2, label:'Mardi',flag:'Ma',color:'#24b34c'},
-    {i:3, label:'Mercredi',flag:'Me',color:'#bb55d5'},
-    {i:4, label:'Jeudi',flag:'Je',color:'#f1a91f'},
-    {i:5, label:'Vendredi',flag:'Ve',color:'#d65158'}
+    {i:1, label:'Lundi',flag:'Lu', color:'#FF69B4'},
+    {i:2, label:'Mardi',flag:'Ma',color:'#00FF00'},
+    {i:3, label:'Mercredi',flag:'Me',color:'#0000FF'},
+    {i:4, label:'Jeudi',flag:'Je',color:'#FF0000'},
+    {i:5, label:'Vendredi',flag:'Ve',color:'#800080'}
   ];
   const HALVES = [{value:'matin',label:'Matin'},{value:'apres-midi',label:'Après-midi'}];
   const CUTOFF=12*60+30;
