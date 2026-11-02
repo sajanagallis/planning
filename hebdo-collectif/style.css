@@ -7,17 +7,17 @@
   --purple: #6421a8;
   --purple-dark: #51188e;
 
-  --monday: #1598e2;
-  --tuesday: #2bb447;
-  --wednesday: #c15bdf;
-  --thursday: #eda820;
-  --friday: #d65357;
+  --monday: #FF69B4;
+  --tuesday: #00FF00;
+  --wednesday: #0000FF;
+  --thursday: #FF0000;
+  --friday: #800080;
 
-  --monday-bg: #eaf6fd;
-  --tuesday-bg: #edf9ef;
-  --wednesday-bg: #f8effc;
-  --thursday-bg: #fff8e8;
-  --friday-bg: #fdefef;
+  --monday-bg: #FF69B42E;
+  --tuesday-bg: #FF69B42E;
+  --wednesday-bg: #0000FF2E;
+  --thursday-bg: #FF00002E;
+  --friday-bg: #8000802E;
 
   --border: #d8d8d8;
 
