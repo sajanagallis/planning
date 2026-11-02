@@ -15,11 +15,11 @@ const TABLES = {
 const DAYS = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi'];
 
 const DAY_COLORS = {
-  Lundi: '#5b8def',
-  Mardi: '#55a868',
-  Mercredi: '#c77cff',
-  Jeudi: '#e6a23c',
-  Vendredi: '#e66b6b'
+  Lundi: '#FFC0CB',
+  Mardi: '#00FF00',
+  Mercredi: '#0000FF',
+  Jeudi: '#FF0000',
+  Vendredi: '#800080'
 };
 
 const state = {
