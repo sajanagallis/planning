@@ -16,7 +16,7 @@ const DAYS = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi'];
 
 const DAY_COLORS = {
   Lundi: '#FF69B4',
-  Mardi: '#00FF00',
+  Mardi: '#009929',
   Mercredi: '#0000FF',
   Jeudi: '#FF0000',
   Vendredi: '#800080'
