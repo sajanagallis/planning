@@ -86,11 +86,11 @@ input[type=checkbox]{accent-color:var(--blue);width:15px;height:15px}
 
 .day-head{padding:8px 7px;text-align:center;border:1px solid var(--line);font-weight:700;font-size:13px;border-radius:9px;background:#fff}
 .day-head small{display:block;font-size:9px;font-weight:400;color:#587084;margin-top:2px}
-.day-head.day-lundi{background:rgba(122,77,163,.10)}
-.day-head.day-mardi{background:rgba(47,128,168,.10)}
-.day-head.day-mercredi{background:rgba(52,139,104,.10)}
-.day-head.day-jeudi{background:rgba(209,132,44,.10)}
-.day-head.day-vendredi{background:rgba(182,75,93,.10)}
+.day-head.day-lundi{background:rgba(255, 105, 180, 0.18)}
+.day-head.day-mardi{background:rgba(0, 153, 41, 0.18)}
+.day-head.day-mercredi{background:rgba(0, 0, 255, 0.18)}
+.day-head.day-jeudi{background:rgba(255, 0, 0, 0.18)}
+.day-head.day-vendredi{background:rgba(128, 0, 128, 0.18)}
 
 .period-cell{border:1px solid var(--line);border-radius:9px;background:#fbfcfd;padding:6px;min-width:0;overflow:visible;position:relative}
 .period-label{display:flex;align-items:center;justify-content:space-between;gap:5px;margin-bottom:6px;font-size:9px;font-weight:800;letter-spacing:.05em;color:#62798c}
