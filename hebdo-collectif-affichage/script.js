@@ -61,7 +61,7 @@ const DAYS = [
       'Mardi',
 
     color:
-      '#2bb447',
+      '#009929',
 
     background:
       'rgba(43,180,71,.10)'
