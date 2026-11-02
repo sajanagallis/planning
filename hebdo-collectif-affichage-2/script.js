@@ -47,10 +47,10 @@ const DAYS = [
       'Lundi',
 
     color:
-      '#1598e2',
+      '#FF69B4',
 
     background:
-      'rgba(21,152,226,.18)'
+      'rgba(255, 105, 180, 0.18)'
 
   },
 
@@ -61,10 +61,10 @@ const DAYS = [
       'Mardi',
 
     color:
-      '#2bb447',
+      '#009929',
 
     background:
-      'rgba(43,180,71,.18)'
+      'rgba(0, 153, 41,.18)'
 
   },
 
@@ -75,10 +75,10 @@ const DAYS = [
       'Mercredi',
 
     color:
-      '#c15bdf',
+      '#0000FF',
 
     background:
-      'rgba(193,91,223,.18)'
+      'rgba(0, 0, 255,.18)'
 
   },
 
@@ -89,10 +89,10 @@ const DAYS = [
       'Jeudi',
 
     color:
-      '#eda820',
+      '#FF0000',
 
     background:
-      'rgba(237,168,32,.18)'
+      'rgba(255, 0, 0,.18)'
 
   },
 
@@ -103,10 +103,10 @@ const DAYS = [
       'Vendredi',
 
     color:
-      '#d65357',
+      '#800080',
 
     background:
-      'rgba(214,83,87,.18)'
+      'rgba(128, 0, 128,.18)'
 
   }
 
