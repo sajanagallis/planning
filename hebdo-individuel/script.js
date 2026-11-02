@@ -15,7 +15,7 @@ const TABLES = {
 const DAYS = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi'];
 
 const DAY_COLORS = {
-  Lundi: '#FFC0CB',
+  Lundi: '#FF69B4',
   Mardi: '#00FF00',
   Mercredi: '#0000FF',
   Jeudi: '#FF0000',
