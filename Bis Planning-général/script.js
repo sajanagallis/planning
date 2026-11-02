@@ -68,7 +68,7 @@
   // URLs officielles Grist : /api/docs/<doc>/attachments/<id>/download?auth=<jeton>.
   // Certaines instances Grist auto-hébergées renvoient une adresse technique
   // interne (0.0.0.0, localhost), inutilisable depuis le navigateur.
-  const PUBLIC_GRIST_ORIGIN='https://grist.laurentclaude.fr';
+  const PUBLIC_GRIST_ORIGIN='https://grist.sansblague.fr';
   function publicAttachmentBase(url){
     const raw=String(url||'').trim();
     if(!raw)return '';
@@ -79,7 +79,7 @@
       if(internal.includes(u.hostname.toLowerCase())){
         const known=new URL(PUBLIC_GRIST_ORIGIN);
         u.protocol=known.protocol;u.hostname=known.hostname;u.port=known.port;
-      }else if(u.hostname.toLowerCase()==='grist.laurentclaude.fr'&&u.protocol==='http:'){
+      }else if(u.hostname.toLowerCase()==='grist.sansblague.fr'&&u.protocol==='http:'){
         u.protocol='https:';
       }
       // Le jeton donne accès au document courant ; ne jamais réécrire vers un
