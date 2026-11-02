@@ -16,31 +16,31 @@ const DAYS = [
   {
     name: 'Lundi',
     key: 'monday',
-    color: '#1598e2'
+    color: '#FF69B4'
   },
 
   {
     name: 'Mardi',
     key: 'tuesday',
-    color: '#2bb447'
+    color: '#009929'
   },
 
   {
     name: 'Mercredi',
     key: 'wednesday',
-    color: '#c15bdf'
+    color: '#0000FF'
   },
 
   {
     name: 'Jeudi',
     key: 'thursday',
-    color: '#eda820'
+    color: '#FF0000'
   },
 
   {
     name: 'Vendredi',
     key: 'friday',
-    color: '#d65357'
+    color: '#800080'
   }
 
 ];
