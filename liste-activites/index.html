@@ -331,8 +331,53 @@ async function exporterWord() {
     zoneTelechargement.innerHTML = "";
 
     try {
-        const { Document, Packer, Paragraph, TextRun, HeadingLevel } = docx;
+        const { Document, Packer, Paragraph, TextRun, HeadingLevel, ImageRun } = docx;
         const contenu = [];
+
+        async function chargerImageWord(id) {
+            const reponse = await fetch(urlImage(id));
+
+            if (!reponse.ok) {
+                throw new Error("Impossible de récupérer l'image " + id);
+            }
+
+            const blob = await reponse.blob();
+            const bitmap = await createImageBitmap(blob);
+
+            // Limiter la taille de l'image dans le document Word
+            const largeurMax = 450;
+            const hauteurMax = 300;
+
+            const ratio = Math.min(
+                largeurMax / bitmap.width,
+                hauteurMax / bitmap.height,
+                1
+            );
+
+            const largeur = Math.round(bitmap.width * ratio);
+            const hauteur = Math.round(bitmap.height * ratio);
+
+            const canvas = document.createElement("canvas");
+            canvas.width = largeur;
+            canvas.height = hauteur;
+
+            const contexte = canvas.getContext("2d");
+            contexte.drawImage(bitmap, 0, 0, largeur, hauteur);
+            bitmap.close();
+
+            const imageBlob = await new Promise((resolve, reject) => {
+                canvas.toBlob(blob => {
+                    if (blob) resolve(blob);
+                    else reject(new Error("Conversion de l'image impossible"));
+                }, "image/png");
+            });
+
+            return {
+                data: new Uint8Array(await imageBlob.arrayBuffer()),
+                width: largeur,
+                height: hauteur
+            };
+        }
 
         function convertirMarkdown(texte) {
             if (!texte) return "";
@@ -374,6 +419,34 @@ async function exporterWord() {
                 })
             );
 
+            // Ajouter la première image de l'activité
+            const images = obtenirImages(activite.Visuel);
+
+            if (images.length > 0) {
+                try {
+                    const image = await chargerImageWord(images[0]);
+
+                    contenu.push(new Paragraph({
+                        children: [
+                            new ImageRun({
+                                data: image.data,
+                                transformation: {
+                                    width: image.width,
+                                    height: image.height
+                                }
+                            })
+                        ],
+                        spacing: { before: 100, after: 150 }
+                    }));
+
+                } catch (erreurImage) {
+                    console.warn(
+                        "Image non intégrée pour " + activite.Nom_activite,
+                        erreurImage
+                    );
+                }
+            }
+            
             // Les images sont conservées dans l'affichage Grist,
             // mais volontairement omises du Word pour éviter l'erreur
             // InvalidAccessError liée au traitement graphique dans l'iframe.
