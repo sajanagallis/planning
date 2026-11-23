@@ -17,6 +17,7 @@ body {
     color: #333;
     background: #fff;
 }
+h2 { color: var(--couleur-titre, #de8436); }
 #statut {
     margin-bottom: 15px;
     color: #666;
@@ -44,7 +45,7 @@ body {
 .texte-activite h3 {
     margin-top: 0;
     margin-bottom: 8px;
-    color: #234b78;
+    color: var(--couleur-activite, #a9c442);
     font-size: 20px;
 }
 .animateurs {
@@ -130,6 +131,48 @@ let baseUrl = "";
 let token = "";
 let gristPret = false;
 let urlFichierWord = null;
+let couleurTitre = "DE8436";
+let couleurActivite = "A9C442";
+
+function normaliserCouleur(valeur, valeurDefaut) {
+    const couleur = String(valeur ?? "").trim().replace(/^#/, "");
+    return /^[0-9a-fA-F]{6}$/.test(couleur) ? couleur.toUpperCase() : valeurDefaut;
+}
+
+async function chargerCouleursParametres() {
+    try {
+        const table = await grist.docApi.fetchTable("Parametres");
+        const libelles = Object.keys(table || {});
+        const colonneTexte1 = table && table.Texte1;
+        if (!colonneTexte1) {
+            throw new Error("La colonne Texte1 est introuvable dans la table Parametres.");
+        }
+
+        for (let i = 0; i < colonneTexte1.length; i++) {
+            const ligne = libelles.some(nomColonne =>
+                nomColonne !== "Texte1" &&
+                String(table[nomColonne]?.[i] ?? "").trim().toLowerCase() ===
+                    "couleur 2"
+            );
+            if (ligne) couleurTitre = normaliserCouleur(colonneTexte1[i], couleurTitre);
+        }
+
+        for (let i = 0; i < colonneTexte1.length; i++) {
+            const ligne = libelles.some(nomColonne =>
+                nomColonne !== "Texte1" &&
+                String(table[nomColonne]?.[i] ?? "").trim().toLowerCase() === "couleur 3"
+            );
+            if (ligne) couleurActivite = normaliserCouleur(colonneTexte1[i], couleurActivite);
+        }
+
+        document.documentElement.style.setProperty("--couleur-titre", "#" + couleurTitre);
+        document.documentElement.style.setProperty("--couleur-activite", "#" + couleurActivite);
+    } catch (erreur) {
+        console.warn("Impossible de charger les couleurs depuis Parametres ; couleurs par défaut utilisées.", erreur);
+        document.documentElement.style.setProperty("--couleur-titre", "#" + couleurTitre);
+        document.documentElement.style.setProperty("--couleur-activite", "#" + couleurActivite);
+    }
+}
 
 const statut = document.getElementById("statut");
 const conteneur = document.getElementById("liste");
@@ -150,6 +193,7 @@ async function initialiserGrist() {
 
         baseUrl = acces.baseUrl.replace(/\/+$/, "");
         token = acces.token;
+        await chargerCouleursParametres();
         gristPret = true;
 
         console.log("Connexion Grist réussie.");
@@ -428,7 +472,12 @@ async function exporterWord() {
 
         contenu.push(
             new Paragraph({
-                text: "Catalogue des activités",
+                children: [new TextRun({
+                    text: "Catalogue des activités",
+                    color: couleurTitre,
+                    bold: true,
+                    size: 32
+                })],
                 heading: HeadingLevel.TITLE,
                 spacing: { after: 80 }
             })
@@ -439,7 +488,12 @@ async function exporterWord() {
 
             contenu.push(
                 new Paragraph({
-                    text: activite.Nom_activite || "Activité sans nom",
+                    children: [new TextRun({
+                        text: activite.Nom_activite || "Activité sans nom",
+                        color: couleurActivite,
+                        bold: true,
+                        size: 26
+                    })],
                     heading: HeadingLevel.HEADING_1,
                     keepNext: true,
                     spacing: { before: 50, after: 20 }
