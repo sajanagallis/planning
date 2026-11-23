@@ -373,8 +373,8 @@ async function exporterWord() {
             }
 
             // Limiter la taille de l'image dans le document Word
-            const largeurMax = 180;
-            const hauteurMax = 120;
+            const largeurMax = 150;
+            const hauteurMax = 100;
 
             const ratio = Math.min(
                 largeurMax / bitmap.width,
@@ -422,7 +422,7 @@ async function exporterWord() {
                     new TextRun({ text: titre + " : ", bold: true }),
                     new TextRun({ text: String(texte) })
                 ],
-                spacing: { before: 80, after: 100 }
+                spacing: { before: 30, after: 50 }
             });
         }
 
@@ -430,7 +430,7 @@ async function exporterWord() {
             new Paragraph({
                 text: "Catalogue des activités",
                 heading: HeadingLevel.TITLE,
-                spacing: { after: 300 }
+                spacing: { after: 150 }
             })
         );
 
@@ -441,7 +441,7 @@ async function exporterWord() {
                 new Paragraph({
                     text: activite.Nom_activite || "Activité sans nom",
                     heading: HeadingLevel.HEADING_1,
-                    spacing: { before: 300, after: 150 }
+                    spacing: { before: 120, after: 60 }
                 })
             );
 
@@ -467,7 +467,7 @@ async function exporterWord() {
                                     }
                                 })
                             ],
-                            spacing: { before: 80, after: 80 }
+                            spacing: { before: 0, after: 0 }
                         })
                     );
                 } catch (erreurImage) {
@@ -521,12 +521,12 @@ async function exporterWord() {
                                 new TableCell({
                                     width: { size: 2600, type: WidthType.DXA },
                                     children: contenuGauche,
-                                    margins: { top: 100, bottom: 100, left: 100, right: 180 }
+                                    margins: { top: 40, bottom: 40, left: 60, right: 100 }
                                 }),
                                 new TableCell({
                                     width: { size: 6800, type: WidthType.DXA },
                                     children: contenuDroite,
-                                    margins: { top: 100, bottom: 100, left: 180, right: 100 }
+                                    margins: { top: 40, bottom: 40, left: 100, right: 60 }
                                 })
                             ]
                         })
@@ -538,7 +538,7 @@ async function exporterWord() {
                 contenu.push(
                     new Paragraph({
                         text: "",
-                        spacing: { before: 100, after: 250 },
+                        spacing: { before: 40, after: 100 },
                         border: {
                             bottom: {
                                 color: "CCCCCC",
