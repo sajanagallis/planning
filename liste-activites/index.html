@@ -441,6 +441,7 @@ async function exporterWord() {
                 new Paragraph({
                     text: activite.Nom_activite || "Activité sans nom",
                     heading: HeadingLevel.HEADING_1,
+                    keepNext: true,
                     spacing: { before: 50, after: 20 }
                 })
             );
@@ -517,6 +518,7 @@ async function exporterWord() {
                     },
                     rows: [
                         new TableRow({
+                            cantSplit: true,
                             children: [
                                 new TableCell({
                                     width: { size: 2300, type: WidthType.DXA },
