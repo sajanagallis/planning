@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Catalogue des activités</title>
+<title>Liste des activités</title>
 
 <script src="https://docs.getgrist.com/grist-plugin-api.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
@@ -504,7 +504,7 @@ async function exporterWord() {
             contenu.push(
                 new Table({
                     width: { size: 100, type: WidthType.PERCENTAGE },
-                    columnWidths: [2600, 6800],
+                    columnWidths: [2300, 7100],
                     // Supprime le cadre et les traits autour des cellules
                     // tout en conservant la disposition en deux colonnes.
                     borders: {
@@ -519,14 +519,14 @@ async function exporterWord() {
                         new TableRow({
                             children: [
                                 new TableCell({
-                                    width: { size: 2600, type: WidthType.DXA },
+                                    width: { size: 2300, type: WidthType.DXA },
                                     children: contenuGauche,
-                                    margins: { top: 0, bottom: 0, left: 20, right: 50 }
+                                    margins: { top: 0, bottom: 0, left: 20, right: 0 }
                                 }),
                                 new TableCell({
-                                    width: { size: 6800, type: WidthType.DXA },
+                                    width: { size: 7100, type: WidthType.DXA },
                                     children: contenuDroite,
-                                    margins: { top: 0, bottom: 0, left: 50, right: 20 }
+                                    margins: { top: 0, bottom: 0, left: 0, right: 20 }
                                 })
                             ]
                         })
