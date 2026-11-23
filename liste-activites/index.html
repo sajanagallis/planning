@@ -330,7 +330,7 @@ async function exporterWord() {
     zoneTelechargement.innerHTML = "";
 
     try {
-        const { Document, Packer, Paragraph, TextRun, HeadingLevel, ImageRun, Table, TableRow, TableCell, WidthType } = docx;
+        const { Document, Packer, Paragraph, TextRun, HeadingLevel, ImageRun, Table, TableRow, TableCell, WidthType, BorderStyle } = docx;
         const contenu = [];
         const erreursImages = [];
 
@@ -505,6 +505,16 @@ async function exporterWord() {
                 new Table({
                     width: { size: 100, type: WidthType.PERCENTAGE },
                     columnWidths: [2600, 6800],
+                    // Supprime le cadre et les traits autour des cellules
+                    // tout en conservant la disposition en deux colonnes.
+                    borders: {
+                        top: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+                        bottom: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+                        left: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+                        right: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+                        insideHorizontal: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+                        insideVertical: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" }
+                    },
                     rows: [
                         new TableRow({
                             children: [
@@ -528,7 +538,15 @@ async function exporterWord() {
                 contenu.push(
                     new Paragraph({
                         text: "",
-                        spacing: { after: 200 }
+                        spacing: { before: 100, after: 250 },
+                        border: {
+                            bottom: {
+                                color: "CCCCCC",
+                                style: "single",
+                                size: 6,
+                                space: 5
+                            }
+                        }
                     })
                 );
             }
