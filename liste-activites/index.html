@@ -335,11 +335,29 @@ async function exporterWord() {
         const contenu = [];
 
         async function chargerImageWord(id) {
-            const reponse = await fetch(urlImage(id));
+            console.log("Tentative de récupération de l'image :", id);
+            console.log("URL :", urlImage(id));
+
+            let reponse;
+
+            try {
+                reponse = await fetch(urlImage(id));
+            } catch (erreur) {
+                throw new Error(
+                    "Le navigateur bloque la récupération de l'image. " +
+                    "Vérifie les autorisations CORS de ton serveur Grist. " +
+                    erreur.message
+                );
+            }
 
             if (!reponse.ok) {
-                throw new Error("Impossible de récupérer l'image " + id);
+                throw new Error(
+                    "Erreur HTTP " + reponse.status +
+                    " lors de la récupération de l'image " + id
+                );
             }
+
+            console.log("Image récupérée :", reponse.status);
 
             const blob = await reponse.blob();
             const bitmap = await createImageBitmap(blob);
@@ -429,6 +447,7 @@ async function exporterWord() {
                     contenu.push(new Paragraph({
                         children: [
                             new ImageRun({
+                                type: "png",
                                 data: image.data,
                                 transformation: {
                                     width: image.width,
