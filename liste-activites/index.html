@@ -440,17 +440,19 @@ async function exporterWord() {
                     }));
 
                 } catch (erreurImage) {
-                    console.warn(
-                        "Image non intégrée pour " + activite.Nom_activite,
+                    console.error(
+                        "ERREUR IMAGE pour : " + activite.Nom_activite,
                         erreurImage
+                    );
+
+                    alert(
+                        "Impossible d'intégrer l'image de l'activité : " +
+                        activite.Nom_activite +
+                        "\nErreur : " + erreurImage.message
                     );
                 }
             }
             
-            // Les images sont conservées dans l'affichage Grist,
-            // mais volontairement omises du Word pour éviter l'erreur
-            // InvalidAccessError liée au traitement graphique dans l'iframe.
-
             ajouterChamp("Animateur(s)", activite.Animateur_s);
             ajouterChamp("Description", convertirMarkdown(activite.Description));
             ajouterChamp("Objectifs éducatifs", convertirMarkdown(activite.Objectifs_educatifs));
