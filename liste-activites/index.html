@@ -439,18 +439,19 @@ async function exporterWord() {
                         spacing: { before: 100, after: 150 }
                     }));
 
-                } catch (erreurImage) {
-                    console.error(
-                        "ERREUR IMAGE pour : " + activite.Nom_activite,
-                        erreurImage
-                    );
+                    } catch (erreurImage) {
 
-                    alert(
-                        "Impossible d'intégrer l'image de l'activité : " +
-                        activite.Nom_activite +
-                        "\nErreur : " + erreurImage.message
-                    );
-                }
+                        console.error(
+                            "ERREUR IMAGE pour : " + activite.Nom_activite,
+                            erreurImage
+                        );
+
+                        statut.textContent =
+                            "Attention : image non intégrée pour " +
+                            activite.Nom_activite +
+                            ". L'export Word continue.";
+
+                    }
             }
             
             ajouterChamp("Animateur(s)", activite.Animateur_s);
