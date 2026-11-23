@@ -112,7 +112,7 @@ h2 { color: var(--couleur-titre, #de8436); }
 </head>
 
 <body>
-<h2>Catalogue des activités</h2>
+<h2>Liste des activités</h2>
 
 <button id="exportWord" type="button" onclick="exporterWord()">
     Exporter au format Word
@@ -473,7 +473,7 @@ async function exporterWord() {
         contenu.push(
             new Paragraph({
                 children: [new TextRun({
-                    text: "Catalogue des activités",
+                    text: "Liste des activités",
                     color: couleurTitre,
                     bold: true,
                     size: 32
@@ -635,7 +635,7 @@ async function exporterWord() {
         const boutonTelechargement = document.createElement("button");
         boutonTelechargement.type = "button";
         boutonTelechargement.textContent =
-            "Ouvrir / télécharger le catalogue Word";
+            "Ouvrir / télécharger le document Word";
         boutonTelechargement.style.cssText =
             "background:#234b78;color:#fff;border:0;padding:10px 16px;" +
             "border-radius:5px;cursor:pointer;font-size:14px;font-weight:bold;";
