@@ -487,9 +487,13 @@ async function exporterWord() {
                 contenuGauche.push(new Paragraph({ text: "" }));
             }
 
+            const descriptionTexte = convertirMarkdown(activite.Description);
             const champs = [
                 creerChamp("Animateur(s)", activite.Animateur_s),
-                creerChamp("Description", convertirMarkdown(activite.Description)),
+                descriptionTexte ? new Paragraph({
+                    children: [new TextRun({ text: descriptionTexte })],
+                    spacing: { before: 0, after: 20 }
+                }) : null,
                 creerChamp("Objectifs éducatifs", convertirMarkdown(activite.Objectifs_educatifs)),
                 creerChamp("Remarques planning", convertirMarkdown(activite.Remarques_planning))
             ];
