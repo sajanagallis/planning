@@ -304,9 +304,8 @@ function afficherActivites() {
 
 /* =====================================================
    7. EXPORT AU FORMAT WORD
-   Le fichier est généré puis un lien apparaît dans le widget.
-   L'utilisateur clique lui-même sur ce lien pour télécharger.
-   Aucun nouvel onglet, document.write ou clic automatique.
+   Le fichier est généré puis un bouton de téléchargement apparaît.
+   L'ouverture du fichier se fait uniquement après un clic explicite.
 ===================================================== */
 async function exporterWord() {
     if (!gristPret) {
@@ -333,6 +332,7 @@ async function exporterWord() {
     try {
         const { Document, Packer, Paragraph, TextRun, HeadingLevel, ImageRun } = docx;
         const contenu = [];
+        const erreursImages = [];
 
         async function chargerImageWord(id) {
             console.log("Tentative de récupération de l'image :", id);
@@ -360,7 +360,17 @@ async function exporterWord() {
             console.log("Image récupérée :", reponse.status);
 
             const blob = await reponse.blob();
+
+            if (!blob || blob.size === 0) {
+                throw new Error("La pièce jointe récupérée est vide.");
+            }
+
             const bitmap = await createImageBitmap(blob);
+
+            if (!bitmap.width || !bitmap.height) {
+                bitmap.close();
+                throw new Error("L'image récupérée a des dimensions invalides.");
+            }
 
             // Limiter la taille de l'image dans le document Word
             const largeurMax = 450;
@@ -463,11 +473,10 @@ async function exporterWord() {
                             "ERREUR IMAGE pour : " + activite.Nom_activite,
                             erreurImage
                         );
-
-                        statut.textContent =
-                            "Échec de l'image pour " +
-                            activite.Nom_activite +
-                            " : " + erreurImage.message;
+                        erreursImages.push({
+                            activite: activite.Nom_activite,
+                            message: erreurImage.message || String(erreurImage)
+                        });
                     }
             }
             
@@ -514,19 +523,37 @@ async function exporterWord() {
 
         urlFichierWord = URL.createObjectURL(fichier);
 
-        const lien = document.createElement("a");
-        lien.href = urlFichierWord;
+        const boutonTelechargement = document.createElement("button");
+        boutonTelechargement.type = "button";
+        boutonTelechargement.textContent =
+            "Ouvrir / télécharger le catalogue Word";
+        boutonTelechargement.style.cssText =
+            "background:#234b78;color:#fff;border:0;padding:10px 16px;" +
+            "border-radius:5px;cursor:pointer;font-size:14px;font-weight:bold;";
 
-        // On laisse le navigateur ouvrir le fichier dans un nouvel onglet.
-        // Il reconnaîtra le type Word et lancera le téléchargement.
-        lien.target = "_blank";
-        lien.rel = "noopener";
-        lien.textContent = "Télécharger le catalogue des activités (Word)";
+        // L'ouverture est déclenchée directement par un clic réel.
+        // Cela évite de dépendre de l'attribut download dans l'iframe Grist.
+        boutonTelechargement.addEventListener("click", function () {
+            const nouvelOnglet = window.open(urlFichierWord, "_blank");
+            if (!nouvelOnglet) {
+                statut.textContent =
+                    "Le navigateur a bloqué le nouvel onglet. Autorise les fenêtres pop-up pour Grist, puis réessaie.";
+            }
+        });
 
-        zoneTelechargement.appendChild(lien);
+        zoneTelechargement.appendChild(boutonTelechargement);
         zoneTelechargement.style.display = "block";
 
-        statut.textContent = "Document Word prêt. Clique sur le lien pour le télécharger.";
+        if (erreursImages.length === 0) {
+            statut.textContent =
+                "Document Word prêt. Toutes les images ont été intégrées.";
+        } else {
+            statut.textContent =
+                "Document Word prêt, mais " + erreursImages.length +
+                " image(s) n'ont pas pu être intégrées : " +
+                erreursImages.map(e => e.activite + " (" + e.message + ")").join(" ; ");
+            console.error("Bilan des images non intégrées :", erreursImages);
+        }
         console.log("Document Word généré :", fichier.size, "octets");
 
     } catch (erreur) {
