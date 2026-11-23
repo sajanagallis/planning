@@ -440,17 +440,15 @@ async function exporterWord() {
                     }));
 
                     } catch (erreurImage) {
-
                         console.error(
                             "ERREUR IMAGE pour : " + activite.Nom_activite,
                             erreurImage
                         );
 
                         statut.textContent =
-                            "Attention : image non intégrée pour " +
+                            "Échec de l'image pour " +
                             activite.Nom_activite +
-                            ". L'export Word continue.";
-
+                            " : " + erreurImage.message;
                     }
             }
             
@@ -499,10 +497,12 @@ async function exporterWord() {
 
         const lien = document.createElement("a");
         lien.href = urlFichierWord;
-        lien.download = "Catalogue_des_activites.docx";
-        lien.textContent = "Télécharger le catalogue des activités (Word)";
+
+        // On laisse le navigateur ouvrir le fichier dans un nouvel onglet.
+        // Il reconnaîtra le type Word et lancera le téléchargement.
         lien.target = "_blank";
         lien.rel = "noopener";
+        lien.textContent = "Télécharger le catalogue des activités (Word)";
 
         zoneTelechargement.appendChild(lien);
         zoneTelechargement.style.display = "block";
