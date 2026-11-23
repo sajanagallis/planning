@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Catalogue des activités</title>
+
+<script src="https://docs.getgrist.com/grist-plugin-api.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.1.6/purify.min.js"></script>
+<script src="https://unpkg.com/docx@8.5.0/build/index.umd.js"></script>
+
+<style>
+body {
+    font-family: Arial, sans-serif;
+    margin: 20px;
+    color: #333;
+    background: #fff;
+}
+#statut {
+    margin-bottom: 15px;
+    color: #666;
+    font-size: 14px;
+}
+#liste { margin-top: 20px; }
+.activite {
+    display: flex;
+    align-items: flex-start;
+    gap: 20px;
+    border-bottom: 1px solid #ddd;
+    padding: 20px 0;
+}
+.zone-image {
+    flex: 0 0 160px;
+    width: 160px;
+}
+.zone-image img {
+    width: 100%;
+    max-height: 150px;
+    object-fit: contain;
+    display: block;
+}
+.texte-activite { flex: 1; min-width: 0; }
+.texte-activite h3 {
+    margin-top: 0;
+    margin-bottom: 8px;
+    color: #234b78;
+    font-size: 20px;
+}
+.animateurs {
+    color: #666;
+    font-style: italic;
+    margin-top: 0;
+}
+.texte-activite h4 {
+    color: #234b78;
+    margin-bottom: 6px;
+    margin-top: 18px;
+}
+.texte-activite p { line-height: 1.5; }
+.texte-activite ul, .texte-activite ol { padding-left: 25px; }
+.texte-activite li { margin-bottom: 5px; }
+.objectifs-ligne, .remarques-ligne {
+    display: block;
+    margin-top: 18px;
+    line-height: 1.5;
+}
+.objectifs-ligne strong, .remarques-ligne strong {
+    display: inline;
+    margin-right: 5px;
+}
+.objectifs-ligne p, .remarques-ligne p,
+.objectifs-ligne span p {
+    display: inline;
+    margin: 0;
+}
+.objectifs-ligne span ul, .objectifs-ligne span ol {
+    display: inline;
+    padding-left: 5px;
+}
+.texte-activite img { max-width: 100%; }
+#exportWord {
+    background: #234b78;
+    color: white;
+    border: none;
+    padding: 10px 16px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 14px;
+}
+#exportWord:hover { background: #183653; }
+#exportWord:disabled { opacity: .6; cursor: wait; }
+#lienTelechargement {
+    display: none;
+    margin: 12px 0;
+    padding: 10px 14px;
+    background: #eef5fb;
+    border: 1px solid #b7cce0;
+    border-radius: 5px;
+}
+#lienTelechargement a {
+    color: #234b78;
+    font-weight: bold;
+}
+@media (max-width: 600px) {
+    .activite { flex-direction: column; }
+    .zone-image { width: 100%; flex-basis: auto; }
+    .zone-image img { max-height: 220px; }
+}
+</style>
+</head>
+
+<body>
+<h2>Catalogue des activités</h2>
+
+<button id="exportWord" type="button" onclick="exporterWord()">
+    Exporter au format Word
+</button>
+
+<div id="lienTelechargement"></div>
+<div id="statut">Connexion à Grist...</div>
+<div id="liste"></div>
+
+<script>
+/* =====================================================
+   1. VARIABLES
+===================================================== */
+let donneesActivites = [];
+let baseUrl = "";
+let token = "";
+let gristPret = false;
+let urlFichierWord = null;
+
+const statut = document.getElementById("statut");
+const conteneur = document.getElementById("liste");
+const zoneTelechargement = document.getElementById("lienTelechargement");
+
+/* =====================================================
+   2. INITIALISATION GRIST
+===================================================== */
+grist.ready({ requiredAccess: "full" });
+
+async function initialiserGrist() {
+    try {
+        const acces = await grist.docApi.getAccessToken({ readOnly: true });
+
+        if (!acces || !acces.baseUrl || !acces.token) {
+            throw new Error("Impossible de récupérer les informations d'accès Grist.");
+        }
+
+        baseUrl = acces.baseUrl.replace(/\/+$/, "");
+        token = acces.token;
+        gristPret = true;
+
+        console.log("Connexion Grist réussie.");
+        afficherActivites();
+    } catch (erreur) {
+        console.error("Erreur Grist :", erreur);
+        statut.textContent = "Erreur de connexion à Grist : " + erreur.message;
+    }
+}
+initialiserGrist();
+
+/* =====================================================
+   3. RÉCEPTION DES ENREGISTREMENTS
+===================================================== */
+grist.onRecords(function(records) {
+    donneesActivites = records.map(record => ({
+        Nom_activite: record.Nom_activite || "",
+        Animateur_s: record.Animateur_s || "",
+        Visuel: record.Visuel || [],
+        Description: record.Description || "",
+        Objectifs_educatifs: record.Objectifs_educatifs || "",
+        Remarques_planning: record.Remarques_planning || ""
+    }));
+
+    donneesActivites.sort((a, b) =>
+        String(a.Nom_activite).localeCompare(
+            String(b.Nom_activite),
+            "fr",
+            { sensitivity: "base", numeric: true }
+        )
+    );
+
+    afficherActivites();
+});
+
+/* =====================================================
+   4. GESTION DES IMAGES POUR L'AFFICHAGE GRIST
+===================================================== */
+function obtenirImages(visuels) {
+    if (!visuels) return [];
+    if (Array.isArray(visuels)) return visuels.filter(Boolean);
+    if (typeof visuels === "number") return [visuels];
+
+    if (typeof visuels === "string") {
+        return visuels.split(",").map(v => v.trim()).filter(Boolean);
+    }
+    return [];
+}
+
+function urlImage(id) {
+    return (
+        baseUrl +
+        "/attachments/" +
+        encodeURIComponent(String(id)) +
+        "/download?auth=" +
+        encodeURIComponent(token)
+    );
+}
+
+/* =====================================================
+   5. SÉCURISATION ET MARKDOWN
+===================================================== */
+function echapperHTML(texte) {
+    return String(texte ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+}
+
+function formaterMarkdown(texte) {
+    if (!texte) return "";
+    const html = marked.parse(String(texte));
+    return DOMPurify.sanitize(html);
+}
+
+/* =====================================================
+   6. AFFICHAGE DES ACTIVITÉS
+===================================================== */
+function afficherActivites() {
+    if (!gristPret) {
+        statut.textContent = "Chargement des autorisations...";
+        return;
+    }
+
+    conteneur.innerHTML = "";
+
+    if (donneesActivites.length === 0) {
+        statut.textContent = "Aucune activité à afficher.";
+        return;
+    }
+
+    donneesActivites.forEach(activite => {
+        const bloc = document.createElement("div");
+        bloc.className = "activite";
+
+        const images = obtenirImages(activite.Visuel);
+        let imageHTML = "";
+
+        if (images.length > 0) {
+            imageHTML = `
+                <div class="zone-image">
+                    <img
+                        src="${echapperHTML(urlImage(images[0]))}"
+                        alt="${echapperHTML(activite.Nom_activite)}"
+                        loading="lazy"
+                    >
+                </div>
+            `;
+        } else {
+            imageHTML = `<div class="zone-image"></div>`;
+        }
+
+        const description = formaterMarkdown(activite.Description);
+        const objectifs = DOMPurify.sanitize(
+            marked.parseInline(String(activite.Objectifs_educatifs || ""))
+        );
+        const remarques = DOMPurify.sanitize(
+            marked.parseInline(String(activite.Remarques_planning || ""))
+        );
+
+        bloc.innerHTML = `
+            ${imageHTML}
+            <div class="texte-activite">
+                <h3>${echapperHTML(activite.Nom_activite)}</h3>
+                <p class="animateurs">
+                    <strong>Animateur(s) :</strong>
+                    ${echapperHTML(activite.Animateur_s)}
+                </p>
+                ${description ? description : ""}
+                ${objectifs ? `
+                    <div class="objectifs-ligne">
+                        <strong>Objectifs éducatifs :</strong>
+                        ${objectifs}
+                    </div>
+                ` : ""}
+                ${remarques ? `
+                    <div class="remarques-ligne">
+                        <strong>Remarques planning :</strong>
+                        ${remarques}
+                    </div>
+                ` : ""}
+            </div>
+        `;
+
+        conteneur.appendChild(bloc);
+    });
+
+    statut.textContent = donneesActivites.length + " activité(s) affichée(s).";
+}
+
+/* =====================================================
+   7. EXPORT AU FORMAT WORD
+   Le fichier est généré puis un lien apparaît dans le widget.
+   L'utilisateur clique lui-même sur ce lien pour télécharger.
+   Aucun nouvel onglet, document.write ou clic automatique.
+===================================================== */
+async function exporterWord() {
+    if (!gristPret) {
+        alert("Le chargement des données n'est pas terminé.");
+        return;
+    }
+
+    if (donneesActivites.length === 0) {
+        alert("Aucune activité à exporter.");
+        return;
+    }
+
+    if (typeof docx === "undefined") {
+        alert("La bibliothèque Word n'a pas pu être chargée. Recharge le widget puis réessaie.");
+        return;
+    }
+
+    const bouton = document.getElementById("exportWord");
+    bouton.disabled = true;
+    bouton.textContent = "Création du document...";
+    zoneTelechargement.style.display = "none";
+    zoneTelechargement.innerHTML = "";
+
+    try {
+        const { Document, Packer, Paragraph, TextRun, HeadingLevel } = docx;
+        const contenu = [];
+
+        function convertirMarkdown(texte) {
+            if (!texte) return "";
+            const html = marked.parse(String(texte));
+            const documentHTML = new DOMParser().parseFromString(html, "text/html");
+            return documentHTML.body.innerText.trim();
+        }
+
+        function ajouterChamp(titre, texte) {
+            if (!texte) return;
+
+            contenu.push(
+                new Paragraph({
+                    children: [
+                        new TextRun({ text: titre + " : ", bold: true }),
+                        new TextRun({ text: String(texte) })
+                    ],
+                    spacing: { before: 100, after: 100 }
+                })
+            );
+        }
+
+        contenu.push(
+            new Paragraph({
+                text: "Catalogue des activités",
+                heading: HeadingLevel.TITLE,
+                spacing: { after: 300 }
+            })
+        );
+
+        for (let i = 0; i < donneesActivites.length; i++) {
+            const activite = donneesActivites[i];
+
+            contenu.push(
+                new Paragraph({
+                    text: activite.Nom_activite || "Activité sans nom",
+                    heading: HeadingLevel.HEADING_1,
+                    spacing: { before: 300, after: 150 }
+                })
+            );
+
+            // Les images sont conservées dans l'affichage Grist,
+            // mais volontairement omises du Word pour éviter l'erreur
+            // InvalidAccessError liée au traitement graphique dans l'iframe.
+
+            ajouterChamp("Animateur(s)", activite.Animateur_s);
+            ajouterChamp("Description", convertirMarkdown(activite.Description));
+            ajouterChamp("Objectifs éducatifs", convertirMarkdown(activite.Objectifs_educatifs));
+            ajouterChamp("Remarques planning", convertirMarkdown(activite.Remarques_planning));
+
+            if (i < donneesActivites.length - 1) {
+                contenu.push(
+                    new Paragraph({
+                        text: "",
+                        spacing: { after: 200 },
+                        border: {
+                            bottom: {
+                                color: "CCCCCC",
+                                style: "single",
+                                size: 6,
+                                space: 5
+                            }
+                        }
+                    })
+                );
+            }
+        }
+
+        const documentWord = new Document({
+            sections: [{
+                properties: {},
+                children: contenu
+            }]
+        });
+
+        const fichier = await Packer.toBlob(documentWord);
+
+        if (!fichier || fichier.size === 0) {
+            throw new Error("Le document Word généré est vide.");
+        }
+
+        // Libérer une éventuelle ancienne URL de téléchargement.
+        if (urlFichierWord) {
+            URL.revokeObjectURL(urlFichierWord);
+        }
+
+        urlFichierWord = URL.createObjectURL(fichier);
+
+        const lien = document.createElement("a");
+        lien.href = urlFichierWord;
+        lien.download = "Catalogue_des_activites.docx";
+        lien.textContent = "Télécharger le catalogue des activités (Word)";
+        lien.target = "_blank";
+        lien.rel = "noopener";
+
+        zoneTelechargement.appendChild(lien);
+        zoneTelechargement.style.display = "block";
+
+        statut.textContent = "Document Word prêt. Clique sur le lien pour le télécharger.";
+        console.log("Document Word généré :", fichier.size, "octets");
+
+    } catch (erreur) {
+        console.error("Erreur lors de l'export Word :", erreur);
+        alert("Une erreur est survenue lors de la création du document Word : " + (erreur.message || erreur));
+    } finally {
+        bouton.disabled = false;
+        bouton.textContent = "Exporter au format Word";
+    }
+}
+</script>
+</body>
+</html>
